@@ -21,6 +21,7 @@
     "date-fns": "^4.1.0",
     "firebase": "^11.10.0",
     "framer-motion": "^12.23.12",
+    "howler": "^2.2.4",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.536.0",
     "react": "^19.1.0",
