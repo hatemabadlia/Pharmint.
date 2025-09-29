@@ -1,0 +1,76 @@
+/* WaveBackground.css */
+
+/* Base wave background gradient */
+.wave-bg {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, #e6fff3 0%, #bff6d8 50%, rgb(118, 255, 83) 100%);
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Common styles for all waves */
+.wave {
+  position: absolute;
+  left: 50%;
+  bottom: -12%;
+  width: 220%;
+  height: 35%;
+  background: radial-gradient(
+    closest-side at 50% 50%, 
+    rgba(255, 255, 255, 0.45), 
+    rgba(175, 64, 64, 0.06)
+  );
+  border-radius: 45% / 100%;
+  transform: translateX(-50%) translateY(0);
+  opacity: 0.6;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-name: waveMove;
+}
+
+/* Wave 1: base wave */
+.wave.wave-1 {
+  animation-duration: 10s;
+  opacity: 0.55;
+  bottom: -10%;
+  filter: blur(3px);
+}
+
+/* Wave 2: slower and bigger wave */
+.wave.wave-2 {
+  animation-duration: 14s;
+  opacity: 0.35;
+  bottom: -16%;
+  transform: translateX(-50%) scale(1.1);
+  filter: blur(5px);
+}
+
+/* Wave 3: slowest and biggest, softest wave */
+.wave.wave-3 {
+  animation-duration: 20s;
+  opacity: 0.2;
+  bottom: -22%;
+  transform: translateX(-50%) scale(1.25);
+  filter: blur(7px);
+}
+
+/* Wave movement keyframes */
+@keyframes waveMove {
+  0% {
+    transform: translateX(-50%) translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateX(-55%) translateY(-12px) rotate(1.2deg);
+  }
+  100% {
+    transform: translateX(-50%) translateY(0) rotate(0deg);
+  }
+}
+
+/* Content container to be above waves */
+.content-above-waves {
+  position: relative;
+  z-index: 10;
+}
