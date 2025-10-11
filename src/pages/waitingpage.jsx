@@ -139,44 +139,59 @@ const res = await fetch("http://localhost:3000/checkout", {
         </motion.p>
 
         <motion.div
-          className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md mb-6"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          <motion.input
-            type="text"
-            placeholder="Entrez le code d'activation"
-            value={activationCode}
-            onChange={(e) => setActivationCode(e.target.value)}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none mb-4"
-          />
+  className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md mb-6"
+  initial={{ opacity: 0, scale: 0.9 }}
+  animate={{ opacity: 1, scale: 1 }}
+  transition={{ duration: 0.5 }}
+>
+  <motion.input
+    type="text"
+    placeholder="Entrez le code d'activation"
+    value={activationCode}
+    onChange={(e) => setActivationCode(e.target.value)}
+    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none mb-4"
+  />
 
-          <motion.button
-            onClick={handleActivate}
-            className="w-full py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition mb-2"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            Activer avec code
-          </motion.button>
+  <motion.button
+    onClick={handleActivate}
+    className="w-full py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition mb-2"
+    whileHover={{ scale: 1.05 }}
+    whileTap={{ scale: 0.95 }}
+  >
+    Activer avec code
+  </motion.button>
 
-          <motion.button
-            onClick={handlePayment}
-            disabled={loadingPayment}
-            className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            {loadingPayment ? "⏳ Redirection..." : "💳 Activer par paiement"}
-          </motion.button>
+  {/* Coming soon button */}
+  <motion.button
+    onClick={() => setMessage("💳 Activation par paiement : Coming Soon !")}
+    className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition mb-2"
+    whileHover={{ scale: 1.05 }}
+    whileTap={{ scale: 0.95 }}
+  >
+    💳 Activer par paiement
+  </motion.button>
 
-          {message && (
-            <motion.p className="text-center text-red-600 mt-2">
-              {message}
-            </motion.p>
-          )}
-        </motion.div>
+  {/* Versment CCP button */}
+  {/* Versment CCP button */}
+<motion.a
+  href="https://t.me/Pharmint"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="w-full flex justify-center py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition mb-2"
+  whileHover={{ scale: 1.05 }}
+  whileTap={{ scale: 0.95 }}
+>
+  💰 Versement CCP
+</motion.a>
+
+
+  {message && (
+    <motion.p className="text-center text-red-600 mt-2">
+      {message}
+    </motion.p>
+  )}
+</motion.div>
+
       </div>
     </>
   );

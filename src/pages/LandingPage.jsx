@@ -119,14 +119,26 @@ const LandingPage = () => {
 
   return (
     <div className="bg-gray-50">
+    
+
+      
       {/* Navbar */}
       <Navbar />
+      <br />
+            <br />
+      <br />
 
+     <div className="w-full bg-emerald-600 text-white text-center py-2 px-4 text-sm md:text-base font-medium shadow-md">
+  📢 Avec chaque achat sur <span className="font-bold">Pharmint</span>, 
+  <span className="underline"> 5% </span> est directement reversé 
+  pour soutenir les <span className="font-bold">enfants de Gaza</span> 💚
+</div>
       {/* HERO */}
       <section
         id="accueil"
         className="relative overflow-hidden min-h-[78vh] grid grid-cols-1 md:grid-cols-2 items-center gap-10 px-6 pt-28"
       >
+        
         <div
           aria-hidden
           className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 md:h-[26rem] md:w-[26rem] rounded-full bg-gradient-to-tr from-emerald-200/70 via-sky-200/60 to-transparent blur-3xl"
@@ -136,7 +148,7 @@ const LandingPage = () => {
             Bienvenue sur <span className="text-emerald-700">Pharmint</span>
           </h1>
           <p className="mt-4 text-gray-600 text-base md:text-lg">
-            La plateforme éducative pour les étudiants en pharmacie en Algérie 🇩🇿.
+            La 1ère plateforme éducative dédiée aux étudiants de la faculté de pharmacie
           </p>
           <div className="mt-6 flex flex-wrap gap-4">
             <a
@@ -158,6 +170,146 @@ const LandingPage = () => {
           <Lottie animationData={heroAnim} loop className="w-[320px] md:w-[460px]" />
         </div>
       </section>
+
+      
+
+      {/* SPÉCIFICATIONS (contenu original) */}
+      <section id="specs" className="py-16 md:py-20 bg-gradient-to-b from-gray-50 to-emerald-50/50">
+  <div className="max-w-7xl mx-auto px-6">
+    <SectionTitle
+      overline="Spécifications"
+      title="🚀 Boostez vos compétences et votre succès"
+      subtitle="La plateforme vous offre une base solide, un contenu fiable et un suivi constant pour étudier efficacement, développer vos compétences et mieux gérer votre temps."
+    />
+
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <SpecCard
+        i={0}
+        icon={<FaCogs />}
+        title="⚡ Performance Optimale"
+        items={[
+          "Optimisations front-end et back-end pour rapidité et stabilité",
+          "Disponible 24/7 avec des temps de chargement ultra-rapides",
+          "Support d’un grand nombre d’utilisateurs sans perte de fluidité",
+        ]}
+      />
+      <SpecCard
+        i={1}
+        icon={<FaSync />}
+        title="🔄 Développement Continu"
+        items={[
+          "Ajout régulier de nouvelles questions et fonctionnalités",
+          "Amélioration constante de l’expérience utilisateur",
+          "Évolution continue des outils pour maximiser vos bénéfices",
+        ]}
+      />
+      <SpecCard
+        i={2}
+        icon={<FaBook />}
+        title="📚 Contenu et Compétences"
+        items={[
+          "Simulations complètes des examens pour une expérience réaliste",
+          "Contenu préparé et validé par l’équipe",
+          "Outils pour organiser votre temps et gérer vos sessions",
+          "Rapports détaillés et explications pédagogiques",
+        ]}
+      />
+      <SpecCard
+        i={3}
+        icon={<FaBell />}
+        title="🔔 Notifications et Alertes"
+        items={[
+          "Alertes instantanées pour chaque nouveauté",
+          "Suivi régulier des mises à jour et des ajouts",
+          "Traitement rapide des signalements et problèmes",
+        ]}
+      />
+      <SpecCard
+        i={4}
+        icon={<FaProjectDiagram />}
+        title="💡 Schématisation et Clarification"
+        items={[
+          "Résumés clairs et images explicatives",
+          "Mindmaps pour mémoriser plus facilement",
+          "Schémas pédagogiques pour simplifier l’information",
+        ]}
+      />
+      <SpecCard
+        i={5}
+        icon={<FaHeadset />}
+        title="📞 Support Dédié"
+        items={[
+          "Assistance disponible par e-mail et téléphone",
+          "Réponses rapides et personnalisées",
+          "Accompagnement pour résoudre vos problèmes et atteindre vos objectifs",
+        ]}
+      />
+    </div>
+  </div>
+</section>
+
+
+      {/* POURQUOI NOUS */}
+      <section id="pourquoi" className="py-16 md:py-20 bg-white">
+  <div className="max-w-7xl mx-auto px-6">
+    <SectionTitle
+      overline="pourquoi nous"
+      title="Pourquoi choisir Pharmint ?"
+      subtitle="Une plateforme éducative innovante, soutenue par une équipe engagée, pour vous accompagner vers la réussite."
+    />
+
+    <div className="grid md:grid-cols-3 gap-6">
+      <motion.div
+        className="p-6 bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 hover:shadow-xl hover:-translate-y-1 transition-all"
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, amount: 0.2 }}
+        variants={motionCardVariants}
+        custom={0}
+      >
+        <h3 className="text-lg font-semibold mb-2">➕ 25 000 QCM/QCS</h3>
+        <p className="text-gray-600">
+          Une banque exceptionnelle avec corrections détaillées pour renforcer vos connaissances et réussir vos examens.
+        </p>
+      </motion.div>
+
+      <motion.div
+        className="p-6 bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 hover:shadow-xl hover:-translate-y-1 transition-all"
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, amount: 0.2 }}
+        variants={motionCardVariants}
+        custom={1}
+      >
+        <h3 className="text-lg font-semibold mb-2">🧠 Résumés & Mindmaps</h3>
+        <p className="text-gray-600">
+          Des supports clairs et structurés pour réviser vite et mémoriser efficacement.
+        </p>
+      </motion.div>
+
+      <motion.div
+        className="p-6 bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 hover:shadow-xl hover:-translate-y-1 transition-all"
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, amount: 0.2 }}
+        variants={motionCardVariants}
+        custom={2}
+      >
+        <h3 className="text-lg font-semibold mb-2">💡 Expérience unique d’apprentissage</h3>
+        <p className="text-gray-600">
+          Une interface moderne, fluide et pensée pour rendre vos révisions plus efficaces et agréables.
+        </p>
+      </motion.div>
+    </div>
+
+    {/* ✅ Texte en bas */}
+    <div className="mt-10 text-center">
+      <p className="text-lg font-semibold text-green-600">
+        🔑 Avec Pharmint, vous avez toutes les clés pour réussir.
+      </p>
+    </div>
+  </div>
+</section>
 
       {/* OFFRES */}
       <section id="offres" className="py-16 md:py-20 bg-white">
@@ -242,138 +394,6 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
-
-      {/* SPÉCIFICATIONS (contenu original) */}
-      <section id="specs" className="py-16 md:py-20 bg-gradient-to-b from-gray-50 to-emerald-50/50">
-        <div className="max-w-7xl mx-auto px-6">
-          <SectionTitle
-            overline="spécifications"
-            title="Pensé pour la performance et la réussite"
-            subtitle="Des bases techniques solides, des contenus vérifiés et un suivi constant."
-          />
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <SpecCard
-              i={0}
-              icon={<FaCogs />}
-              title="Performance"
-              items={[
-                "Optimisations intelligentes côté front & back",
-                "Disponibilité continue 24/7",
-                "Temps de chargement minimisés",
-                "Support d’un grand nombre d’utilisateurs",
-              ]}
-            />
-            <SpecCard
-              i={1}
-              icon={<FaSync />}
-              title="Évolutions & mises à jour"
-              items={[
-                "Ajout régulier de nouvelles questions",
-                "Nouvelles fonctionnalités utiles",
-                "Améliorations de performance",
-                "Correctifs de sécurité",
-              ]}
-            />
-            <SpecCard
-              i={2}
-              icon={<FaBook />}
-              title="Qualité du contenu"
-              items={[
-                "Variété de scénarios & examens",
-                "Questions revues par l’équipe",
-                "Réponses précises & expliquées",
-                "Annotations pédagogiques",
-              ]}
-            />
-            <SpecCard
-              i={3}
-              icon={<FaBell />}
-              title="Notifications utiles"
-              items={[
-                "Alerte nouveautés & guides",
-                "Ajout des nouvelles questions",
-                "Suivi des mises à jour",
-                "Signalements traités rapidement",
-              ]}
-            />
-            <SpecCard
-              i={4}
-              icon={<FaProjectDiagram />}
-              title="Schématisation"
-              items={[
-                "Images explicatives",
-                "Tableaux récap’ clairs",
-                "Mindmaps de synthèse",
-                "Schémas pédagogiques",
-              ]}
-            />
-            <SpecCard
-              i={5}
-              icon={<FaHeadset />}
-              title="Support dédié"
-              items={[
-                "Disponible par e-mail & téléphone",
-                "Réponses rapides aux questions",
-                "Aide à la résolution de problèmes",
-                "Accompagnement personnalisé",
-              ]}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* POURQUOI NOUS */}
-      <section id="pourquoi" className="py-16 md:py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <SectionTitle
-            overline="pourquoi nous"
-            title="Pourquoi choisir Pharmint ?"
-            subtitle="Une plateforme claire, complète et efficace pour progresser."
-          />
-          <div className="grid md:grid-cols-3 gap-6">
-            <motion.div
-              className="p-6 bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 hover:shadow-xl hover:-translate-y-1 transition-all"
-              initial="hidden"
-              whileInView="show"
-              viewport={{ once: true, amount: 0.2 }}
-              variants={motionCardVariants}
-              custom={0}
-            >
-              <h3 className="text-lg font-semibold mb-2">📚 +5000 QCM</h3>
-              <p className="text-gray-600">
-                Une grande banque de QCM/QCS avec corrections détaillées.
-              </p>
-            </motion.div>
-            <motion.div
-              className="p-6 bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 hover:shadow-xl hover:-translate-y-1 transition-all"
-              initial="hidden"
-              whileInView="show"
-              viewport={{ once: true, amount: 0.2 }}
-              variants={motionCardVariants}
-              custom={1}
-            >
-              <h3 className="text-lg font-semibold mb-2">🎯 Cours complets</h3>
-              <p className="text-gray-600">
-                Des cours mis à jour rédigés par des encadrants et praticiens.
-              </p>
-            </motion.div>
-            <motion.div
-              className="p-6 bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 hover:shadow-xl hover:-translate-y-1 transition-all"
-              initial="hidden"
-              whileInView="show"
-              viewport={{ once: true, amount: 0.2 }}
-              variants={motionCardVariants}
-              custom={2}
-            >
-              <h3 className="text-lg font-semibold mb-2">💡 Interface simple</h3>
-              <p className="text-gray-600">
-                Navigation fluide, modules clairs et progression visible.
-              </p>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
       {/* CONTACT */}
       <section id="contact" className="py-16 md:py-20 bg-gradient-to-b from-white to-emerald-50/60">
         <div className="max-w-5xl mx-auto px-6 text-center">
@@ -385,7 +405,7 @@ const LandingPage = () => {
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <a
-              href="https://wa.me/213650000000"
+              href="https://wa.me/213652790035"
               target="_blank"
               rel="noopener noreferrer"
               className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl shadow hover:bg-emerald-700 transition"
@@ -393,19 +413,53 @@ const LandingPage = () => {
               📱 WhatsApp
             </a>
             <a
-              href="mailto:contact@pharmint.dz"
-              className="px-6 py-3 bg-white text-emerald-700 font-semibold rounded-xl shadow ring-1 ring-emerald-200 hover:ring-emerald-300 transition"
-            >
-              ✉️ Envoyer un Email
-            </a>
+  href="https://mail.google.com/mail/?view=cm&fs=1&to=pharmint.plateforme@gmail.com"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="px-6 py-3 bg-white text-emerald-700 font-semibold rounded-xl shadow ring-1 ring-emerald-200 hover:ring-emerald-300 transition"
+>
+  ✉️ Envoyer un Email
+</a>
+
+
           </div>
         </div>
       </section>
 
       {/* FOOTER */}
-      <footer className="bg-gray-900 text-gray-300 py-6 text-center">
-        <p>© {new Date().getFullYear()} Pharmint — Tous droits réservés.</p>
-      </footer>
+      <footer className="bg-gradient-to-r from-emerald-100/80 via-white/90 to-green-50/80 backdrop-blur-md shadow-md text-green-600 hover:bg-gray-100 py-10 text-center">
+  <div className="max-w-6xl mx-auto px-6">
+    <p className="mb-4">© {new Date().getFullYear()} Pharmint — Tous droits réservés.</p>
+    
+    <div className="flex justify-center gap-6 text-lg">
+      <a
+        href="https://www.facebook.com/share/19qmqJA9t3/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hover:text-emerald-200 transition"
+      >
+        🌐 Facebook
+      </a>
+      <a
+        href="https://www.instagram.com/pharmint.dz?igsh=MTBybDZvcTJhNnFpcA=="
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hover:text-emerald-200 transition"
+      >
+        📸 Instagram
+      </a>
+      <a
+        href="#"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hover:text-emerald-200 transition"
+      >
+        🎵 TikTok
+      </a>
+    </div>
+  </div>
+</footer>
+
     </div>
   );
 };

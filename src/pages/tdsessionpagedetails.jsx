@@ -1,33 +1,29 @@
-// src/pages/client/ExamDetailPage.jsx
-import React, { useEffect, useState, useRef } from "react";
+// src/pages/client/TDSessionPage.jsx
+import React, { useEffect, useState } from "react";
 import { db, auth } from "../firebase/config";
 import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Howl } from "howler";
 
-export default function ExamDetailPage() {
+export default function TDSessionPage() {
   const { id } = useParams();
   const userId = auth.currentUser?.uid;
 
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState({});
+  const [selected, setSelected] = useState(null);
   const [scoreNegative, setScoreNegative] = useState(0);
   const [scoreNormal, setScoreNormal] = useState(0);
   const [finished, setFinished] = useState(false);
+  const [showResponse, setShowResponse] = useState(false);
 
   const [notes, setNotes] = useState({});
   const [noteInput, setNoteInput] = useState("");
   const [reportMsg, setReportMsg] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [notInterested, setNotInterested] = useState({});
-
-  // 🕒 Timer states
-  const [timeLeft, setTimeLeft] = useState(60 * 30); // default 30min
-  const [isPaused, setIsPaused] = useState(false);
-  const timerRef = useRef(null);
 
   const playSound = (type) => {
     const sound = new Howl({
@@ -37,27 +33,29 @@ export default function ExamDetailPage() {
           : "https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg",
       ],
     });
-    //sound.play();
+    sound.play();
   };
 
-  // Fetch session
   useEffect(() => {
     if (!userId || !id) return;
 
-    const fetchSession = async () => {
+    const fetchTDSession = async () => {
       try {
-        const ref = doc(db, "users", userId, "exams", id);
+        const ref = doc(db, "users", userId, "td_sessions", id);
         const snap = await getDoc(ref);
 
         if (snap.exists()) {
           const data = snap.data();
-          let questions = [];
-
-          if (data.courses?.[0]?.questions) {
-            questions = data.courses[0].questions;
+          let allQuestions = [];
+          if (Array.isArray(data.tds)) {
+            data.tds.forEach((td) => {
+              if (Array.isArray(td.questions)) {
+                allQuestions = [...allQuestions, ...td.questions];
+              }
+            });
           }
 
-          setSession({ ...data, questions });
+          setSession({ ...data, questions: allQuestions });
 
           if (data.notes) {
             const map = {};
@@ -66,11 +64,6 @@ export default function ExamDetailPage() {
             });
             setNotes(map);
           }
-
-          const initialTime =
-            data.remainingTime || data.totalTime || 60 * 30;
-
-          setTimeLeft(initialTime);
         }
       } catch (err) {
         console.error("Erreur:", err);
@@ -79,56 +72,27 @@ export default function ExamDetailPage() {
       }
     };
 
-    fetchSession();
+    fetchTDSession();
   }, [userId, id]);
 
-  // Auto Timer effect
-  useEffect(() => {
-    if (finished) {
-      clearInterval(timerRef.current);
-      return;
-    }
-
-    if (!isPaused) {
-      timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current);
-            handleFinishAuto();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-
-    return () => clearInterval(timerRef.current);
-  }, [isPaused, finished]);
-
-  const formatTime = (secs) => {
-    const m = Math.floor(secs / 60)
-      .toString()
-      .padStart(2, "0");
-    const s = (secs % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
-  };
-
   if (loading) return <p className="text-center mt-10">Chargement...</p>;
-  if (!session)
-    return <p className="text-center mt-10">Session introuvable ❌</p>;
+  if (!session) return <p className="text-center mt-10">Session TD introuvable ❌</p>;
 
   const questions = session?.questions || [];
   const current = questions[currentQuestion];
 
+  // 🧠 Step 1: Only store the selected answer — no display yet
   const handleAnswer = (optionKey) => {
-    if (selectedAnswers[currentQuestion]) return;
-    setSelectedAnswers((prev) => ({
-      ...prev,
-      [currentQuestion]: optionKey,
-    }));
+    if (selected) return;
+    setSelected(optionKey);
+  };
 
-    // Record scores internally (answers not revealed yet)
-    if (optionKey === current.correct_answer) {
+  // 🧠 Step 2: Reveal correct answer + justification + sound
+  const handleShowResponse = () => {
+    if (!selected || showResponse) return;
+    setShowResponse(true);
+
+    if (selected === current.correct_answer) {
       setScoreNegative((s) => s + 1);
       setScoreNormal((s) => s + 1);
       playSound("correct");
@@ -138,42 +102,42 @@ export default function ExamDetailPage() {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentQuestion + 1 < questions.length) {
       setCurrentQuestion((q) => q + 1);
+      setSelected(null);
       setNoteInput(notes[currentQuestion + 1] || "");
       setReportMsg("");
+      setShowResponse(false);
     } else {
-      handleFinishAuto();
+      setFinished(true);
+      try {
+        const ref = doc(db, "users", userId, "td_sessions", id);
+        await updateDoc(ref, {
+          finished: true,
+          score: ((scoreNormal / questions.length) * 20).toFixed(2),
+          updatedAt: new Date(),
+        });
+      } catch (err) {
+        console.error("Erreur update finish:", err);
+      }
     }
   };
 
-  const handlePrev = () => {
+  const handlePrevious = () => {
     if (currentQuestion > 0) {
       setCurrentQuestion((q) => q - 1);
+      setSelected(null);
       setNoteInput(notes[currentQuestion - 1] || "");
       setReportMsg("");
-    }
-  };
-
-  const handleFinishAuto = async () => {
-    setFinished(true);
-    try {
-      const ref = doc(db, "users", userId, "exams", id);
-      await updateDoc(ref, {
-        finished: true,
-        score: ((scoreNormal / questions.length) * 20).toFixed(2),
-        updatedAt: new Date(),
-      });
-    } catch (err) {
-      console.error("Erreur update finish:", err);
+      setShowResponse(false);
     }
   };
 
   const handleSaveNote = async () => {
     if (!noteInput.trim()) return alert("Écrivez une note.");
     try {
-      const ref = doc(db, "users", userId, "exams", id);
+      const ref = doc(db, "users", userId, "td_sessions", id);
       await updateDoc(ref, {
         notes: arrayUnion({
           questionId: currentQuestion,
@@ -198,7 +162,7 @@ export default function ExamDetailPage() {
   const handleReport = async () => {
     if (!reportMsg.trim()) return alert("Écrivez un message pour le rapport.");
     try {
-      const ref = doc(db, "users", userId, "exams", id);
+      const ref = doc(db, "users", userId, "td_sessions", id);
       await updateDoc(ref, {
         reports: arrayUnion({
           questionId: currentQuestion,
@@ -225,17 +189,13 @@ export default function ExamDetailPage() {
     }));
   };
 
-  const finalScoreNegative = Math.max(
-    0,
-    ((scoreNegative / questions.length) * 20).toFixed(2)
-  );
-  const finalScoreNormal = Math.max(
-    0,
-    ((scoreNormal / questions.length) * 20).toFixed(2)
-  );
+  const finalScoreNegative = Math.max(0, ((scoreNegative / questions.length) * 20).toFixed(2));
+  const finalScoreNormal = Math.max(0, ((scoreNormal / questions.length) * 20).toFixed(2));
 
-  const filteredQuestions = questions.filter((q) =>
-    q.question_text.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredQuestions = questions.filter(
+    (q) =>
+      q.question_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      q.year?.toString().includes(searchTerm)
   );
 
   return (
@@ -245,25 +205,11 @@ export default function ExamDetailPage() {
         background: "linear-gradient(180deg, #ffffff 0%, #d4f8d4 100%)",
       }}
     >
-      {!finished && (
-        <div className="mb-6 flex items-center gap-4">
-          <div className="text-2xl font-bold text-green-700">
-            ⏰ {formatTime(timeLeft)}
-          </div>
-          <button
-            onClick={() => setIsPaused(!isPaused)}
-            className="px-4 py-2 bg-yellow-400 text-white rounded-lg shadow hover:bg-yellow-500"
-          >
-            {isPaused ? "▶️ Reprendre" : "⏸ Pause"}
-          </button>
-        </div>
-      )}
-
       {/* 🔍 Search bar */}
       <div className="w-full max-w-3xl mb-6">
         <input
           type="text"
-          placeholder="🔍 Rechercher une question..."
+          placeholder="🔍 Rechercher une question TD..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full p-3 rounded-xl border border-green-300 shadow"
@@ -278,26 +224,27 @@ export default function ExamDetailPage() {
       >
         {!finished ? (
           <>
-            {/* Progress Bar */}
-            <div className="w-full bg-green-100 rounded-full h-3 mb-6 overflow-hidden">
+            {/* Progress bar */}
+            <div className="w-full bg-green-100 rounded-full h-4 mb-6 overflow-hidden relative">
               <motion.div
-                className="h-3 bg-green-500"
+                className="h-4 bg-green-500"
                 initial={{ width: "0%" }}
                 animate={{
                   width: `${((currentQuestion + 1) / questions.length) * 100}%`,
                 }}
                 transition={{ duration: 0.5 }}
               />
+              <span className="absolute inset-0 flex justify-center items-center text-xs font-semibold text-green-800">
+                {currentQuestion + 1} / {questions.length}
+              </span>
             </div>
 
             <h1 className="text-2xl font-bold text-gray-800 mb-6">
-              {session.title || "Session sans titre"}
+              {session.title || "TD Session"}
             </h1>
 
             {current.source && (
-              <p className="text-sm text-gray-500 italic mb-2">
-                📌 {current.source}
-              </p>
+              <p className="text-sm text-gray-500 italic mb-2">📘 {current.source}</p>
             )}
 
             <h2 className="text-xl font-semibold text-gray-700 mb-4">
@@ -310,21 +257,29 @@ export default function ExamDetailPage() {
                 const val = current.options?.[key];
                 if (!val) return null;
                 const isNotInterested = notInterested[currentQuestion]?.[key];
-                const selected = selectedAnswers[currentQuestion];
+
+                // ✅ Logic for coloring
+                const getButtonClass = () => {
+                  if (!selected) return isNotInterested ? "bg-gray-100 text-gray-400 opacity-50" : "bg-green-50 hover:bg-green-100 text-gray-700";
+
+                  if (showResponse && key === current.correct_answer)
+                    return "bg-green-500 text-white"; // show green only after "Afficher la réponse"
+
+                  if (key === selected && key !== current.correct_answer && showResponse)
+                    return "bg-red-500 text-white";
+
+                  if (key === selected)
+                    return "bg-blue-200 text-gray-800"; // selected but not revealed yet
+
+                  return "bg-gray-200 text-gray-600";
+                };
+
                 return (
                   <motion.div key={key} className="flex items-center gap-2">
                     <motion.button
                       whileTap={{ scale: 0.95 }}
                       disabled={!!selected}
-                      className={`flex-1 py-3 px-5 rounded-xl text-lg font-semibold transition-all duration-300 shadow ${
-                        selected
-                          ? key === selected
-                            ? "bg-blue-200 text-blue-800"
-                            : "bg-gray-100 text-gray-500"
-                          : isNotInterested
-                          ? "bg-gray-100 text-gray-400 opacity-50"
-                          : "bg-green-50 hover:bg-green-100 text-gray-700"
-                      }`}
+                      className={`flex-1 py-3 px-5 rounded-xl text-lg font-semibold transition-all duration-300 shadow ${getButtonClass()}`}
                       onClick={() => handleAnswer(key)}
                     >
                       {key}. {val}
@@ -345,16 +300,84 @@ export default function ExamDetailPage() {
               })}
             </div>
 
-            {/* Next/Previous Controls */}
-            <div className="flex justify-between mt-6">
+            {/* Button to show response */}
+            {selected && !showResponse && (
+              <div className="mt-6">
+                <button
+                  onClick={handleShowResponse}
+                  className="bg-blue-500 px-4 py-2 rounded-xl text-white font-semibold hover:bg-blue-600 shadow"
+                >
+                  📖 Afficher la réponse
+                </button>
+              </div>
+            )}
+
+            {/* ✅ Show correct answer + justification */}
+            {showResponse && selected && (
+              <div className="mt-6 bg-green-50 p-4 rounded-xl border border-green-200 text-left">
+                <h3 className="text-gray-800 font-semibold mb-2">📘 Justification :</h3>
+                {current.justification_text ? (
+                  <p className="text-gray-700">{current.justification_text}</p>
+                ) : (
+                  <p className="text-gray-400 italic">Pas de justification fournie.</p>
+                )}
+                {current.justification_image_url && (
+                  <img
+                    src={current.justification_image_url}
+                    alt="Justification"
+                    className="mt-4 rounded-lg max-h-64 mx-auto"
+                  />
+                )}
+
+                {/* Notes */}
+                <div className="mt-6">
+                  <textarea
+                    value={noteInput}
+                    onChange={(e) => setNoteInput(e.target.value)}
+                    placeholder="📝 Écrire une note sur cette question..."
+                    className="w-full p-3 rounded-xl border border-gray-300"
+                  />
+                  <button
+                    onClick={handleSaveNote}
+                    className="mt-2 bg-blue-500 px-4 py-2 rounded-xl text-white shadow hover:bg-blue-600"
+                  >
+                    💾 Sauvegarder Note
+                  </button>
+                  {notes[currentQuestion] && (
+                    <p className="text-sm text-gray-500 mt-2">
+                      Dernière note : {notes[currentQuestion]}
+                    </p>
+                  )}
+                </div>
+
+                {/* Report */}
+                <div className="mt-6">
+                  <textarea
+                    value={reportMsg}
+                    onChange={(e) => setReportMsg(e.target.value)}
+                    placeholder="🚩 Signaler un problème..."
+                    className="w-full p-3 rounded-xl border border-red-300"
+                  />
+                  <button
+                    onClick={handleReport}
+                    className="mt-2 bg-red-500 px-4 py-2 rounded-xl text-white shadow hover:bg-red-600"
+                  >
+                    🚨 Envoyer Rapport
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Navigation */}
+            <div className="flex justify-between items-center mt-8">
               <motion.button
                 whileTap={{ scale: 0.9 }}
-                onClick={handlePrev}
+                onClick={handlePrevious}
                 disabled={currentQuestion === 0}
-                className={`px-6 py-2 rounded-xl text-white font-semibold shadow ${
+                className={`px-6 py-2 rounded-xl font-semibold shadow ${
                   currentQuestion === 0
-                    ? "bg-gray-300 cursor-not-allowed"
-                    : "bg-green-500 hover:bg-green-600"
+                    ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                    : "bg-yellow-400 text-white hover:bg-yellow-500"
                 }`}
               >
                 ⬅ Précédent
@@ -365,38 +388,25 @@ export default function ExamDetailPage() {
                 onClick={handleNext}
                 className="bg-green-500 px-6 py-2 rounded-xl text-white font-semibold shadow hover:bg-green-600"
               >
-                {currentQuestion + 1 < questions.length
-                  ? "Suivant ➡"
-                  : "Terminer 🎉"}
+                {currentQuestion + 1 < questions.length ? "Suivant ➡" : "Terminer 🎉"}
               </motion.button>
             </div>
-
-            <p className="text-gray-600 mt-6">
-              Question {currentQuestion + 1} / {questions.length}
-            </p>
           </>
         ) : (
-          // ✅ Finished View
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <h2 className="text-3xl font-bold text-gray-800 mb-4">
-              🎉 Session terminée !
-            </h2>
+            <h2 className="text-3xl font-bold text-gray-800 mb-4">🎉 TD Terminé !</h2>
 
             <p className="text-gray-700 text-xl mb-2">
-              Note système normal:{" "}
-              <span className="font-bold text-green-600">
-                {finalScoreNormal} / 20
-              </span>
+              Note normale:{" "}
+              <span className="font-bold text-green-600">{finalScoreNormal} / 20</span>
             </p>
             <p className="text-gray-700 text-xl mb-6">
-              Note système négatif:{" "}
-              <span className="font-bold text-red-600">
-                {finalScoreNegative} / 20
-              </span>
+              Note négative:{" "}
+              <span className="font-bold text-red-600">{finalScoreNegative} / 20</span>
             </p>
 
             <div className="w-full bg-gray-200 rounded-full h-4 mb-6 overflow-hidden">
@@ -410,52 +420,16 @@ export default function ExamDetailPage() {
               />
             </div>
 
-            {/* ✅ Show Correct Answers Review */}
-            <div className="text-left mt-6 space-y-4">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                📋 Correction des réponses :
-              </h3>
-              {questions.map((q, i) => (
-                <div
-                  key={i}
-                  className="p-3 rounded-lg border border-gray-200 bg-gray-50"
-                >
-                  <p className="font-semibold mb-2">
-                    {i + 1}. {q.question_text}
-                  </p>
-                  {["A", "B", "C", "D", "E"].map((key) => {
-                    const val = q.options?.[key];
-                    if (!val) return null;
-                    const isCorrect = key === q.correct_answer;
-                    const selected = selectedAnswers[i];
-                    return (
-                      <p
-                        key={key}
-                        className={`ml-4 ${
-                          isCorrect
-                            ? "text-green-600 font-semibold"
-                            : key === selected
-                            ? "text-red-500"
-                            : "text-gray-600"
-                        }`}
-                      >
-                        {key}. {val}
-                      </p>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-
             <motion.button
               whileTap={{ scale: 0.9 }}
-              className="bg-green-500 px-6 py-3 mt-8 rounded-xl text-lg font-semibold text-white shadow hover:bg-green-600"
+              className="bg-green-500 px-6 py-3 rounded-xl text-lg font-semibold text-white shadow hover:bg-green-600"
               onClick={() => {
                 setCurrentQuestion(0);
                 setScoreNegative(0);
                 setScoreNormal(0);
                 setFinished(false);
-                setSelectedAnswers({});
+                setSelected(null);
+                setNoteInput(notes[0] || "");
               }}
             >
               🔄 Recommencer
@@ -464,7 +438,7 @@ export default function ExamDetailPage() {
         )}
       </motion.div>
 
-      {/* 🔍 Search results */}
+      {/* Search results */}
       {searchTerm && (
         <div className="w-full max-w-3xl mt-8 bg-white p-4 rounded-xl shadow border">
           <h3 className="font-bold text-lg mb-3">Résultats :</h3>
@@ -476,8 +450,10 @@ export default function ExamDetailPage() {
                   className="cursor-pointer hover:text-green-600"
                   onClick={() => {
                     setCurrentQuestion(i);
+                    setSelected(null);
                     setNoteInput(notes[i] || "");
                     setReportMsg("");
+                    setShowResponse(false);
                   }}
                 >
                   {i + 1}. {q.question_text}

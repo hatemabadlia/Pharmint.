@@ -24,6 +24,9 @@ import CourseTracker from "./pages/couresTracker";
 import ExamSessionPage from "./pages/ExamSessionPage";
 import CreateExam from "./pages/CreateExams";
 import ExamDetailPage from "./pages/Examsdeatilssession";
+import TDTPPage from "./pages/tdsessionpage";
+import CreateTDSession from "./pages/tptdcreatesession";
+import TDSessionPage from "./pages/tdsessionpagedetails";
 
 function App() {
   return (
@@ -61,6 +64,10 @@ function App() {
           <Route path="examSession" element={<ExamSessionPage/>} />
           <Route path="CreateExam" element={<CreateExam/>} />
           <Route path="exams/:id" element={<ExamDetailPage />} />
+          <Route path="/home/tdtp" element={<TDTPPage />} />
+          <Route path="/home/tdtp/create" element={<CreateTDSession/>}/>
+          <Route path="/home/tdtp/sessions/:id" element={<TDSessionPage/>} /> {/* /home/todo-list */}
+
           {/* Add more protected routes as needed */}
         </Route>
 

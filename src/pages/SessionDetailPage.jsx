@@ -22,6 +22,7 @@ export default function SessionDetailPage() {
   const [scoreNegative, setScoreNegative] = useState(0);
   const [scoreNormal, setScoreNormal] = useState(0);
   const [finished, setFinished] = useState(false);
+  const [showResponse, setShowResponse] = useState(false); // ✅ Show justification manually
 
   const [notes, setNotes] = useState({});
   const [noteInput, setNoteInput] = useState("");
@@ -52,11 +53,7 @@ export default function SessionDetailPage() {
           const data = snap.data();
           let questions = [];
 
-          if (
-            data.courses &&
-            Array.isArray(data.courses) &&
-            data.courses[0]?.questions
-          ) {
+          if (data.courses && Array.isArray(data.courses) && data.courses[0]?.questions) {
             questions = data.courses[0].questions;
           }
 
@@ -86,11 +83,17 @@ export default function SessionDetailPage() {
   const questions = session?.questions || [];
   const current = questions[currentQuestion];
 
+  // ✅ Updated: selected answer is stored but no score/color until "Afficher la réponse"
   const handleAnswer = (optionKey) => {
     if (selected) return;
     setSelected(optionKey);
+  };
 
-    if (optionKey === current.correct_answer) {
+  const handleShowResponse = () => {
+    if (!selected || showResponse) return;
+    setShowResponse(true);
+
+    if (selected === current.correct_answer) {
       setScoreNegative((s) => s + 1);
       setScoreNormal((s) => s + 1);
       playSound("correct");
@@ -106,10 +109,9 @@ export default function SessionDetailPage() {
       setSelected(null);
       setNoteInput(notes[currentQuestion + 1] || "");
       setReportMsg("");
+      setShowResponse(false);
     } else {
       setFinished(true);
-
-      // ✅ Update Firestore when finished
       try {
         const ref = doc(db, "users", userId, "sessions", id);
         await updateDoc(ref, {
@@ -120,6 +122,16 @@ export default function SessionDetailPage() {
       } catch (err) {
         console.error("Erreur update finish:", err);
       }
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion((q) => q - 1);
+      setSelected(null);
+      setNoteInput(notes[currentQuestion - 1] || "");
+      setReportMsg("");
+      setShowResponse(false);
     }
   };
 
@@ -178,18 +190,13 @@ export default function SessionDetailPage() {
     }));
   };
 
-  const finalScoreNegative = Math.max(
-    0,
-    ((scoreNegative / questions.length) * 20).toFixed(2)
-  );
-  const finalScoreNormal = Math.max(
-    0,
-    ((scoreNormal / questions.length) * 20).toFixed(2)
-  );
+  const finalScoreNegative = Math.max(0, ((scoreNegative / questions.length) * 20).toFixed(2));
+  const finalScoreNormal = Math.max(0, ((scoreNormal / questions.length) * 20).toFixed(2));
 
-  const filteredQuestions = questions.filter((q) =>
-    q.question_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    q.year?.toString().includes(searchTerm) 
+  const filteredQuestions = questions.filter(
+    (q) =>
+      q.question_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      q.year?.toString().includes(searchTerm)
   );
 
   return (
@@ -219,29 +226,28 @@ export default function SessionDetailPage() {
         {!finished ? (
           <>
             {/* Progress Bar */}
-            <div className="w-full bg-green-100 rounded-full h-3 mb-6 overflow-hidden">
+            <div className="w-full bg-green-100 rounded-full h-4 mb-6 overflow-hidden relative">
               <motion.div
-                className="h-3 bg-green-500"
+                className="h-4 bg-green-500"
                 initial={{ width: "0%" }}
                 animate={{
                   width: `${((currentQuestion + 1) / questions.length) * 100}%`,
                 }}
                 transition={{ duration: 0.5 }}
               />
+              <span className="absolute inset-0 flex justify-center items-center text-xs font-semibold text-green-800">
+                {currentQuestion + 1} / {questions.length}
+              </span>
             </div>
 
             <h1 className="text-2xl font-bold text-gray-800 mb-6">
               {session.title || "Session sans titre"}
             </h1>
 
-            {/* ✅ Source */}
             {current.source && (
-              <p className="text-sm text-gray-500 italic mb-2">
-                📌 {current.source}
-              </p>
+              <p className="text-sm text-gray-500 italic mb-2">📌 {current.source}</p>
             )}
 
-            {/* Question */}
             <h2 className="text-xl font-semibold text-gray-700 mb-4">
               {currentQuestion + 1}. {current.question_text}
             </h2>
@@ -252,28 +258,30 @@ export default function SessionDetailPage() {
                 const val = current.options?.[key];
                 if (!val) return null;
                 const isNotInterested = notInterested[currentQuestion]?.[key];
+
+                const getButtonClass = () => {
+                  if (!selected) return isNotInterested ? "bg-gray-100 text-gray-400 opacity-50" : "bg-green-50 hover:bg-green-100 text-gray-700";
+
+                  if (showResponse && key === current.correct_answer)
+                    return "bg-green-500 text-white";
+
+                  if (showResponse && key === selected && key !== current.correct_answer)
+                    return "bg-red-500 text-white";
+
+                  return "bg-gray-200 text-gray-600";
+                };
+
                 return (
                   <motion.div key={key} className="flex items-center gap-2">
                     <motion.button
                       whileTap={{ scale: 0.95 }}
                       disabled={!!selected}
-                      className={`flex-1 py-3 px-5 rounded-xl text-lg font-semibold transition-all duration-300 shadow ${
-                        selected
-                          ? key === current.correct_answer
-                            ? "bg-green-500 text-white"
-                            : key === selected
-                            ? "bg-red-500 text-white"
-                            : "bg-gray-200 text-gray-600"
-                          : isNotInterested
-                          ? "bg-gray-100 text-gray-400 opacity-50"
-                          : "bg-green-50 hover:bg-green-100 text-gray-700"
-                      }`}
+                      className={`flex-1 py-3 px-5 rounded-xl text-lg font-semibold transition-all duration-300 shadow ${getButtonClass()}`}
                       onClick={() => handleAnswer(key)}
                     >
                       {key}. {val}
                     </motion.button>
 
-                    {/* ❌ Not Interested toggle */}
                     <button
                       onClick={() => toggleNotInterested(key)}
                       className={`px-3 py-1 rounded-lg text-sm ${
@@ -289,18 +297,28 @@ export default function SessionDetailPage() {
               })}
             </div>
 
-            {/* Justification + Notes + Report */}
-            {selected && (
+            {/* Show Response Button */}
+            {selected && !showResponse && (
+              <div className="mt-6">
+                <button
+                  onClick={handleShowResponse}
+                  className="bg-blue-500 px-4 py-2 rounded-xl text-white font-semibold hover:bg-blue-600 shadow"
+                >
+                  📖 Afficher la réponse
+                </button>
+              </div>
+            )}
+
+            {/* Rest of your code stays completely the same... */}
+
+            {/* Response Section */}
+            {showResponse && selected && (
               <div className="mt-6 bg-green-50 p-4 rounded-xl border border-green-200 text-left">
-                <h3 className="text-gray-800 font-semibold mb-2">
-                  📖 Justification :
-                </h3>
+                <h3 className="text-gray-800 font-semibold mb-2">📖 Justification :</h3>
                 {current.justification_text ? (
                   <p className="text-gray-700">{current.justification_text}</p>
                 ) : (
-                  <p className="text-gray-400 italic">
-                    Pas de justification fournie.
-                  </p>
+                  <p className="text-gray-400 italic">Pas de justification fournie.</p>
                 )}
                 {current.justification_image_url && (
                   <img
@@ -346,20 +364,32 @@ export default function SessionDetailPage() {
                     🚨 Envoyer Rapport
                   </button>
                 </div>
-
-                <div className="flex justify-end mt-4">
-                  <motion.button
-                    whileTap={{ scale: 0.9 }}
-                    onClick={handleNext}
-                    className="bg-green-500 px-6 py-2 rounded-xl text-white font-semibold shadow hover:bg-green-600"
-                  >
-                    {currentQuestion + 1 < questions.length
-                      ? "Suivant ➡"
-                      : "Terminer 🎉"}
-                  </motion.button>
-                </div>
               </div>
             )}
+
+            {/* Navigation */}
+            <div className="flex justify-between items-center mt-8">
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={handlePrevious}
+                disabled={currentQuestion === 0}
+                className={`px-6 py-2 rounded-xl font-semibold shadow ${
+                  currentQuestion === 0
+                    ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                    : "bg-yellow-400 text-white hover:bg-yellow-500"
+                }`}
+              >
+                ⬅ Précédent
+              </motion.button>
+
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={handleNext}
+                className="bg-green-500 px-6 py-2 rounded-xl text-white font-semibold shadow hover:bg-green-600"
+              >
+                {currentQuestion + 1 < questions.length ? "Suivant ➡" : "Terminer 🎉"}
+              </motion.button>
+            </div>
 
             <p className="text-gray-600 mt-6">
               Question {currentQuestion + 1} / {questions.length}
@@ -371,21 +401,15 @@ export default function SessionDetailPage() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <h2 className="text-3xl font-bold text-gray-800 mb-4">
-              🎉 Session terminée !
-            </h2>
+            <h2 className="text-3xl font-bold text-gray-800 mb-4">🎉 Session terminée !</h2>
 
             <p className="text-gray-700 text-xl mb-2">
               Note système normal:{" "}
-              <span className="font-bold text-green-600">
-                {finalScoreNormal} / 20
-              </span>
+              <span className="font-bold text-green-600">{finalScoreNormal} / 20</span>
             </p>
             <p className="text-gray-700 text-xl mb-6">
               Note système négatif:{" "}
-              <span className="font-bold text-red-600">
-                {finalScoreNegative} / 20
-              </span>
+              <span className="font-bold text-red-600">{finalScoreNegative} / 20</span>
             </p>
 
             <div className="w-full bg-gray-200 rounded-full h-4 mb-6 overflow-hidden">
@@ -417,7 +441,7 @@ export default function SessionDetailPage() {
         )}
       </motion.div>
 
-      {/* 🔍 Search results */}
+      {/* Search results */}
       {searchTerm && (
         <div className="w-full max-w-3xl mt-8 bg-white p-4 rounded-xl shadow border">
           <h3 className="font-bold text-lg mb-3">Résultats :</h3>
@@ -432,6 +456,7 @@ export default function SessionDetailPage() {
                     setSelected(null);
                     setNoteInput(notes[i] || "");
                     setReportMsg("");
+                    setShowResponse(false);
                   }}
                 >
                   {i + 1}. {q.question_text}

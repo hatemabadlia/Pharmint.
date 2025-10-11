@@ -6,6 +6,7 @@ import { doc, setDoc, Timestamp } from "firebase/firestore";
 import { auth, db } from "../firebase/config";
 import Lottie from "lottie-react";
 import SignUpAnimation from "../assets/Login.json"; // ✅ hero animation
+import { Eye, EyeOff } from "lucide-react"; // ✅ icons
 import "../style/WaveBackground.css";
 
 const SignUp = () => {
@@ -20,6 +21,10 @@ const SignUp = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [specialite, setSpecialite] = useState("");
   const [year, setYear] = useState("");
+
+  // ✅ For toggling visibility
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const yearsBySpecialite = {
     Pharmacie: ["1ʳᵉ Année", "2ᵉ Année", "3ᵉ Année", "4ᵉ Année", "5ᵉ Année", "Résidanat"],
@@ -43,7 +48,6 @@ const SignUp = () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Store user in Firestore
       await setDoc(doc(db, "users", user.uid), {
         nom,
         prenom,
@@ -51,11 +55,11 @@ const SignUp = () => {
         email,
         specialite,
         year,
-        approved: false, // admin approval
+        approved: false,
         createdAt: Timestamp.now(),
       });
 
-      navigate("/waiting"); // ✅ Redirect to waiting
+      navigate("/waiting");
     } catch (error) {
       alert(error.message);
     }
@@ -63,10 +67,9 @@ const SignUp = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-green-50 relative">
-      {/* ✅ Main Layout */}
       <div className="flex flex-col md:flex-row items-center justify-center w-full max-w-5xl px-6 z-10">
 
-        {/* ✅ SignUp Card (Left in Desktop) */}
+        {/* ✅ SignUp Card */}
         <div className="bg-white/90 backdrop-blur-lg p-8 rounded-2xl shadow-xl w-full md:w-1/2 max-w-md">
           <h2 className="text-3xl font-bold text-green-600 mb-6">Inscription</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -76,16 +79,52 @@ const SignUp = () => {
             </div>
             <input type="text" placeholder="Nom d'utilisateur" value={username} onChange={e => setUsername(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required />
             <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required />
-            <input type="password" placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required />
-            <input type="password" placeholder="Confirmer mot de passe" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required />
-            
+
+            {/* ✅ Password Input with Toggle */}
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Mot de passe"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none pr-10"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-2.5 text-gray-500 hover:text-green-600"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+
+            {/* ✅ Confirm Password Input with Toggle */}
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                placeholder="Confirmer mot de passe"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none pr-10"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-2.5 text-gray-500 hover:text-green-600"
+              >
+                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+
             <select value={specialite} onChange={e => { setSpecialite(e.target.value); setYear(""); }} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required>
               <option value="">Sélectionner spécialité</option>
               <option value="Pharmacie">Pharmacie</option>
               <option value="Pharmacie Industrielle">Pharmacie Industrielle</option>
               <option value="Pharmacie Auxiliaire">Pharmacie Auxiliaire</option>
             </select>
-            
+
             <select value={year} onChange={e => setYear(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required disabled={!specialite}>
               <option value="">{specialite ? "Sélectionner l'année" : "Sélectionnez d'abord la spécialité"}</option>
               {specialite && yearsBySpecialite[specialite]?.map(y => (<option key={y} value={y}>{y}</option>))}
@@ -100,7 +139,7 @@ const SignUp = () => {
           </p>
         </div>
 
-        {/* ✅ Hero Section (Right in Desktop) */}
+        {/* ✅ Hero Section */}
         <div className="w-full md:w-1/2 flex justify-center mt-8 md:mt-0">
           <Lottie animationData={SignUpAnimation} loop={true} className="w-72 md:w-96" />
         </div>

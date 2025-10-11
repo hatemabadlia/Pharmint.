@@ -21,10 +21,9 @@ import {
 const menuItems = [
   { icon: <FaBook />, label: "Cours", path: "/home/courses" },
   { icon: <FaTasks />, label: "To-Do List", path: "/home/todo" },
-  { icon: <FaClipboardList />, label: "TD/TP QSM", path: "/home/modules" }, // ✅ remplacé
+  { icon: <FaClipboardList />, label: "TD/TP QSM", path: "/home/tdtp" }, // ✅ remplacé
   { icon: <FaPuzzlePiece />, label: "Quiz", path: "/home/sessions" },
   { icon: <FaListAlt />, label: "Exams", path: "/home/examSession" }, // ✅ remplacé
-  { icon: <FaChartBar />, label: "Statistiques", path: "/home/statistics" },
   { icon: <FaUser />, label: "Profil", path: "/home/profile" },
   { icon: <FaCrown />, label: "Abonnement", path: "/home/subscription" },
   { icon: <FaHourglassHalf />, label: "Countdown Exam", path: "/home/exam-countdown" },

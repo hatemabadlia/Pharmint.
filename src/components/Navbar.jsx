@@ -18,8 +18,12 @@ const Navbar = () => {
 
   // ✅ Colors based on scroll
   const textColor = scrolled ? "text-gray-800" : "text-green-700";
-  const borderColor = scrolled ? "bg-green-600 text-white hover:bg-green-700" : "bg-white text-green-600 hover:bg-gray-100";
-  const btnBg = scrolled ? "bg-green-600 text-white hover:bg-green-700" : "bg-white text-green-600 hover:bg-gray-100";
+  const borderColor = scrolled
+    ? "bg-green-600 text-white hover:bg-green-700"
+    : "bg-white text-green-600 hover:bg-gray-100";
+  const btnBg = scrolled
+    ? "bg-green-600 text-white hover:bg-green-700"
+    : "bg-white text-green-600 hover:bg-gray-100";
 
   return (
     <motion.nav
@@ -37,16 +41,23 @@ const Navbar = () => {
         <img src={logo} alt="Logo" className="h-9 drop-shadow-md" />
 
         {/* ✅ Desktop Menu */}
+        {/* ✅ Desktop Menu */}
         <ul className={`hidden md:flex gap-8 font-medium text-sm ${textColor}`}>
-          {["accueil", "abonnements", "pourquoi", "contact"].map((item) => (
-            <li key={item}>
+          {[
+            { id: "accueil", label: "Accueil" },
+            { id: "specs", label: "Spécifications" },
+            { id: "pourquoi", label: "Pourquoi nous" },
+            { id: "offres", label: "Abonnements" },
+            { id: "contact", label: "Contact" },
+          ].map((item) => (
+            <li key={item.id}>
               <Link
-                to={item}
+                to={item.id}
                 smooth
                 duration={600}
                 className="cursor-pointer relative group"
               >
-                {item.charAt(0).toUpperCase() + item.slice(1)}
+                {item.label}
                 <span
                   className={`absolute left-0 bottom-[-4px] w-0 h-[2px] ${
                     scrolled ? "bg-green-600" : "bg-white"
@@ -92,16 +103,22 @@ const Navbar = () => {
             transition={{ duration: 0.3 }}
             className="md:hidden bg-gradient-to-b from-green-600 to-emerald-500 px-4 py-4 space-y-4 text-white text-sm shadow-lg"
           >
-            {["accueil", "abonnements", "pourquoi", "contact"].map((item) => (
+            {[
+              { id: "accueil", label: "Accueil" },
+              { id: "specs", label: "Spécifications" },
+              { id: "pourquoi", label: "Pourquoi nous" },
+              { id: "offres", label: "Abonnements" },
+              { id: "contact", label: "Contact" },
+            ].map((item) => (
               <Link
-                key={item}
-                to={item}
+                key={item.id}
+                to={item.id}
                 smooth
                 duration={600}
                 className="block hover:pl-2 transition-all"
                 onClick={() => setIsOpen(false)}
               >
-                {item.charAt(0).toUpperCase() + item.slice(1)}
+                {item.label}
               </Link>
             ))}
 
