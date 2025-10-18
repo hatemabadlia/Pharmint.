@@ -13,11 +13,20 @@ export default function TDSessionPage() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentQuestion, setCurrentQuestion] = useState(0);
+
+  // selected can be string (single) or array (multi)
   const [selected, setSelected] = useState(null);
-  const [scoreNegative, setScoreNegative] = useState(0);
-  const [scoreNormal, setScoreNormal] = useState(0);
+
+  // scoring accumulators
+  const [scoreNegative, setScoreNegative] = useState(0); // for negative system
+  const [scoreNormal, setScoreNormal] = useState(0); // tout ou rien
+  const [scorePartiel, setScorePartiel] = useState(0); // partial positive
+
   const [finished, setFinished] = useState(false);
   const [showResponse, setShowResponse] = useState(false);
+
+  // prevent double scoring if user revisits and clicks "Afficher la réponse" again
+  const [answeredIndices, setAnsweredIndices] = useState(new Set());
 
   const [notes, setNotes] = useState({});
   const [noteInput, setNoteInput] = useState("");
@@ -81,25 +90,106 @@ export default function TDSessionPage() {
   const questions = session?.questions || [];
   const current = questions[currentQuestion];
 
-  // 🧠 Step 1: Only store the selected answer — no display yet
+  // helper to know if current question expects multiple answers
+  const isMulti = Array.isArray(current?.correct_answer);
+
+  // Toggle/select answer(s). User can change freely until showResponse === true
   const handleAnswer = (optionKey) => {
-    if (selected) return;
-    setSelected(optionKey);
+    if (showResponse) return; // locked after revealing
+
+    if (isMulti) {
+      // ensure selected is an array
+      const arr = Array.isArray(selected) ? [...selected] : [];
+      const idx = arr.indexOf(optionKey);
+      if (idx === -1) arr.push(optionKey);
+      else arr.splice(idx, 1);
+      setSelected(arr);
+    } else {
+      // single selection: set or toggle same selection
+      setSelected((prev) => (prev === optionKey ? null : optionKey));
+    }
   };
 
-  // 🧠 Step 2: Reveal correct answer + justification + sound
+  // scoring when reveal is clicked
   const handleShowResponse = () => {
-    if (!selected || showResponse) return;
-    setShowResponse(true);
+    if ((isMulti && (!selected || selected.length === 0)) || (!isMulti && !selected)) return;
+    if (showResponse) return;
 
-    if (selected === current.correct_answer) {
-      setScoreNegative((s) => s + 1);
-      setScoreNormal((s) => s + 1);
-      playSound("correct");
-    } else {
-      setScoreNegative((s) => s - 0.25);
-      playSound("wrong");
+    // avoid double-scoring for same question
+    if (answeredIndices.has(currentQuestion)) {
+      setShowResponse(true);
+      return;
     }
+
+    // determine correct answers in uniform array form
+    const correctArr = isMulti ? current.correct_answer : [current.correct_answer];
+
+    // user's selection array
+    const userArr = isMulti ? (Array.isArray(selected) ? selected : []) : [selected];
+
+    // compute counts
+    const numCorrectPicked = userArr.filter((opt) => correctArr.includes(opt)).length;
+    const numWrongPicked = userArr.filter((opt) => !correctArr.includes(opt)).length;
+    const totalCorrect = correctArr.length || 1;
+
+    // ---------- Tout ou Rien ----------
+    // full point if user picked exactly all correct and nothing else (set equality)
+    const pickedSet = new Set(userArr);
+    const correctSet = new Set(correctArr);
+    let toutOuRienPoint = 0;
+    if (pickedSet.size > 0 && pickedSet.size === correctSet.size) {
+      // check equality
+      const allMatch = [...correctSet].every((x) => pickedSet.has(x));
+      if (allMatch) toutOuRienPoint = 1;
+    }
+
+    // ---------- Partiel (positive) ----------
+    // fraction of correct answers picked (0..1)
+    const partielPoint = totalCorrect ? numCorrectPicked / totalCorrect : 0;
+
+    // ---------- Partiel Négatif ----------
+    // start with same partial positive then subtract penalty per wrong pick
+    const penaltyPerWrong = 0.25; // same penalty you used previously
+    const partielNegPoint = Math.max(0, partielPoint - numWrongPicked * penaltyPerWrong);
+
+    // ---------- single-answer fallback ----------
+    if (!isMulti) {
+      // single-answer logic consistent with earlier behavior:
+      if (selected === current.correct_answer) {
+        // correct
+        // keep same: normal +1, partiel +1, negative unaffected
+        setScoreNormal((s) => s + 1);
+        setScorePartiel((s) => s + 1);
+        setScoreNegative((s) => s + 1);
+        playSound("correct");
+      } else {
+        // wrong
+        setScoreNegative((s) => s - penaltyPerWrong);
+        setScorePartiel((s) => s + 0); // no partial
+        playSound("wrong");
+      }
+    } else {
+      // multi-answer accumulators
+      setScoreNormal((s) => s + toutOuRienPoint);
+      setScorePartiel((s) => s + partielPoint);
+      // for negative, accumulate partielNegPoint but also keep earlier "negative style"
+      setScoreNegative((s) => s + partielNegPoint);
+      // sound: play correct sound if there is at least one correct picked and no wrong picks OR full correct
+      if (toutOuRienPoint === 1 || (numCorrectPicked > 0 && numWrongPicked === 0)) {
+        playSound("correct");
+      } else {
+        playSound("wrong");
+      }
+    }
+
+    // mark as answered to prevent double counting
+    setAnsweredIndices((prev) => {
+      const copy = new Set(prev);
+      copy.add(currentQuestion);
+      return copy;
+    });
+
+    setShowResponse(true);
   };
 
   const handleNext = async () => {
@@ -113,9 +203,12 @@ export default function TDSessionPage() {
       setFinished(true);
       try {
         const ref = doc(db, "users", userId, "td_sessions", id);
+        // Save three scoring styles to Firestore
         await updateDoc(ref, {
           finished: true,
-          score: ((scoreNormal / questions.length) * 20).toFixed(2),
+          score_tout_ou_rien: ((scoreNormal / questions.length) * 20).toFixed(2),
+          score_partiel: ((scorePartiel / questions.length) * 20).toFixed(2),
+          score_partiel_negative: ((scoreNegative / questions.length) * 20).toFixed(2),
           updatedAt: new Date(),
         });
       } catch (err) {
@@ -189,14 +282,53 @@ export default function TDSessionPage() {
     }));
   };
 
-  const finalScoreNegative = Math.max(0, ((scoreNegative / questions.length) * 20).toFixed(2));
-  const finalScoreNormal = Math.max(0, ((scoreNormal / questions.length) * 20).toFixed(2));
+  const finalScoreNormal = Math.max(
+    0,
+    ((scoreNormal / (questions.length || 1)) * 20).toFixed(2)
+  );
+  const finalScorePartiel = Math.max(
+    0,
+    ((scorePartiel / (questions.length || 1)) * 20).toFixed(2)
+  );
+  const finalScoreNegative = Math.max(
+    0,
+    ((scoreNegative / (questions.length || 1)) * 20).toFixed(2)
+  );
 
   const filteredQuestions = questions.filter(
     (q) =>
       q.question_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
       q.year?.toString().includes(searchTerm)
   );
+
+  // UI button class logic (keeps your original style, but supports multi)
+  const getButtonClass = (key) => {
+    // when responses shown: highlight correct / incorrect
+    if (showResponse) {
+      const correctArr = isMulti ? current.correct_answer : [current.correct_answer];
+      const isCorrect = correctArr.includes(key);
+      const userPicked = isMulti
+        ? Array.isArray(selected) && selected.includes(key)
+        : selected === key;
+
+      if (isCorrect) return "bg-green-500 text-white";
+      if (userPicked && !isCorrect) return "bg-red-500 text-white";
+      return "bg-gray-200 text-gray-600";
+    }
+
+    // before reveal: show selected differently
+    if (isMulti) {
+      const userSelected = Array.isArray(selected) && selected.includes(key);
+      if (userSelected) return "bg-blue-200 text-gray-800 border-2 border-blue-300";
+    } else {
+      if (selected === key) return "bg-blue-200 text-gray-800 border-2 border-blue-300";
+    }
+
+    // notSelected and notInterested visuals
+    const isNotInterested = notInterested[currentQuestion]?.[key];
+    if (isNotInterested) return "bg-gray-100 text-gray-400 opacity-50";
+    return "bg-green-50 hover:bg-green-100 text-gray-700 transition-colors";
+  };
 
   return (
     <div
@@ -230,7 +362,7 @@ export default function TDSessionPage() {
                 className="h-4 bg-green-500"
                 initial={{ width: "0%" }}
                 animate={{
-                  width: `${((currentQuestion + 1) / questions.length) * 100}%`,
+                  width: `${((currentQuestion + 1) / (questions.length || 1)) * 100}%`,
                 }}
                 transition={{ duration: 0.5 }}
               />
@@ -258,28 +390,14 @@ export default function TDSessionPage() {
                 if (!val) return null;
                 const isNotInterested = notInterested[currentQuestion]?.[key];
 
-                // ✅ Logic for coloring
-                const getButtonClass = () => {
-                  if (!selected) return isNotInterested ? "bg-gray-100 text-gray-400 opacity-50" : "bg-green-50 hover:bg-green-100 text-gray-700";
-
-                  if (showResponse && key === current.correct_answer)
-                    return "bg-green-500 text-white"; // show green only after "Afficher la réponse"
-
-                  if (key === selected && key !== current.correct_answer && showResponse)
-                    return "bg-red-500 text-white";
-
-                  if (key === selected)
-                    return "bg-blue-200 text-gray-800"; // selected but not revealed yet
-
-                  return "bg-gray-200 text-gray-600";
-                };
-
                 return (
                   <motion.div key={key} className="flex items-center gap-2">
                     <motion.button
                       whileTap={{ scale: 0.95 }}
-                      disabled={!!selected}
-                      className={`flex-1 py-3 px-5 rounded-xl text-lg font-semibold transition-all duration-300 shadow ${getButtonClass()}`}
+                      disabled={showResponse}
+                      className={`flex-1 py-3 px-5 rounded-xl text-lg font-semibold transition-all duration-300 shadow ${getButtonClass(
+                        key
+                      )}`}
                       onClick={() => handleAnswer(key)}
                     >
                       {key}. {val}
@@ -301,7 +419,7 @@ export default function TDSessionPage() {
             </div>
 
             {/* Button to show response */}
-            {selected && !showResponse && (
+            {((isMulti && selected && selected.length > 0) || (!isMulti && selected)) && !showResponse && (
               <div className="mt-6">
                 <button
                   onClick={handleShowResponse}
@@ -313,7 +431,7 @@ export default function TDSessionPage() {
             )}
 
             {/* ✅ Show correct answer + justification */}
-            {showResponse && selected && (
+            {showResponse && ((isMulti && selected && selected.length > 0) || (!isMulti && selected)) && (
               <div className="mt-6 bg-green-50 p-4 rounded-xl border border-green-200 text-left">
                 <h3 className="text-gray-800 font-semibold mb-2">📘 Justification :</h3>
                 {current.justification_text ? (
@@ -344,9 +462,7 @@ export default function TDSessionPage() {
                     💾 Sauvegarder Note
                   </button>
                   {notes[currentQuestion] && (
-                    <p className="text-sm text-gray-500 mt-2">
-                      Dernière note : {notes[currentQuestion]}
-                    </p>
+                    <p className="text-sm text-gray-500 mt-2">Dernière note : {notes[currentQuestion]}</p>
                   )}
                 </div>
 
@@ -401,19 +517,22 @@ export default function TDSessionPage() {
             <h2 className="text-3xl font-bold text-gray-800 mb-4">🎉 TD Terminé !</h2>
 
             <p className="text-gray-700 text-xl mb-2">
-              Note normale:{" "}
+              🔹 Tout ou Rien:{" "}
               <span className="font-bold text-green-600">{finalScoreNormal} / 20</span>
             </p>
+
+            <p className="text-gray-700 text-xl mb-2">
+              🔹 Partiel: <span className="font-bold text-blue-600">{finalScorePartiel} / 20</span>
+            </p>
+
             <p className="text-gray-700 text-xl mb-6">
-              Note négative:{" "}
+              🔹 Partiel Négatif:{" "}
               <span className="font-bold text-red-600">{finalScoreNegative} / 20</span>
             </p>
 
             <div className="w-full bg-gray-200 rounded-full h-4 mb-6 overflow-hidden">
               <motion.div
-                className={`h-4 ${
-                  finalScoreNegative >= 10 ? "bg-green-500" : "bg-red-500"
-                }`}
+                className={`h-4 ${finalScoreNegative >= 10 ? "bg-green-500" : "bg-red-500"}`}
                 initial={{ width: "0%" }}
                 animate={{ width: `${(finalScoreNegative / 20) * 100}%` }}
                 transition={{ duration: 1 }}
@@ -427,9 +546,11 @@ export default function TDSessionPage() {
                 setCurrentQuestion(0);
                 setScoreNegative(0);
                 setScoreNormal(0);
+                setScorePartiel(0);
                 setFinished(false);
                 setSelected(null);
                 setNoteInput(notes[0] || "");
+                setAnsweredIndices(new Set());
               }}
             >
               🔄 Recommencer

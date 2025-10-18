@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { db, auth } from "../firebase/config";
 import { collection, getDocs, doc, getDoc, addDoc } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 
 export default function CreateExam() {
   const [modules, setModules] = useState([]);
@@ -14,17 +15,18 @@ export default function CreateExam() {
 
   const [speciality, setSpeciality] = useState("");
   const [year, setYear] = useState("");
-  const [examTitle, setExamTitle] = useState(""); 
-  const [maxQuestions, setMaxQuestions] = useState(0); 
+  const [examTitle, setExamTitle] = useState("");
+  const [maxQuestions, setMaxQuestions] = useState(0);
+  const [examDuration, setExamDuration] = useState(3600); // default 1h
 
-  const [examDuration, setExamDuration] = useState(3600); // default 1h (in seconds)
+  const navigate = useNavigate();
 
   const formatId = (id) => {
     if (!id) return "";
     return id.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
-  // Charger modules
+  // 🔹 Fetch modules
   useEffect(() => {
     const fetchModules = async () => {
       setLoading(true);
@@ -43,6 +45,7 @@ export default function CreateExam() {
               : data.specialite === "Pharmacie Auxiliaire"
               ? "pharmacie_auxiliaire"
               : "pharmacie_industrielle";
+
           const yr = data.year.includes("1")
             ? "year_1"
             : data.year.includes("2")
@@ -78,7 +81,7 @@ export default function CreateExam() {
     fetchModules();
   }, []);
 
-  // Charger cours
+  // 🔹 Fetch courses
   useEffect(() => {
     const fetchCourses = async () => {
       if (!selectedModule || !speciality || !year) {
@@ -114,14 +117,14 @@ export default function CreateExam() {
     fetchCourses();
   }, [selectedModule, speciality, year]);
 
-  // recalcul du total des questions sélectionnées
+  // 🔹 Recalculate total questions
   useEffect(() => {
     const total = selectedCourses.reduce(
       (sum, c) => sum + (c.questionCount || 0),
       0
     );
     setMaxQuestions(total);
-    if (questionCount > total) setQuestionCount(total); 
+    if (questionCount > total) setQuestionCount(total);
   }, [selectedCourses]);
 
   const handleAddCourse = (course) => {
@@ -134,7 +137,7 @@ export default function CreateExam() {
     setSelectedCourses(selectedCourses.filter((c) => c.id !== course.id));
   };
 
-  // Save exam
+  // 🔹 Save exam + redirect
   const handleSaveExam = async () => {
     try {
       const userId = auth.currentUser?.uid;
@@ -151,22 +154,17 @@ export default function CreateExam() {
         order_mode: order,
         speciality,
         year,
-        totalTime: examDuration, // ⏰ durée totale en secondes
-        remainingTime: examDuration, // copie pour countdown
+        totalTime: examDuration,
+        remainingTime: examDuration,
         finished: false,
         createdAt: Date.now(),
       });
 
-      alert("✅ Examen créé avec succès !");
-      setExamTitle("");
-      setSelectedModule("");
-      setSelectedCourses([]);
-      setAvailableCourses([]);
-      setQuestionCount(0);
-      setOrder("annee");
-      setExamDuration(3600);
+      // ✅ Redirect to exam sessions after creation
+      navigate("/home/examSession");
     } catch (err) {
       console.error("Erreur création examen:", err);
+      alert("❌ Une erreur est survenue lors de la création de l'examen");
     }
   };
 
@@ -213,9 +211,7 @@ export default function CreateExam() {
       <div className="grid grid-cols-2 gap-8 mb-10">
         {/* Available */}
         <div>
-          <h2 className="font-semibold mb-3 text-gray-700">
-            📂 Liste des cours
-          </h2>
+          <h2 className="font-semibold mb-3 text-gray-700">📂 Liste des cours</h2>
           <div className="border rounded-xl h-72 overflow-y-auto p-3 shadow-sm">
             {loading ? (
               <p>Chargement...</p>
@@ -239,9 +235,7 @@ export default function CreateExam() {
 
         {/* Selected */}
         <div>
-          <h2 className="font-semibold mb-3 text-gray-700">
-            ✅ Cours sélectionnés
-          </h2>
+          <h2 className="font-semibold mb-3 text-gray-700">✅ Cours sélectionnés</h2>
           <div className="border rounded-xl h-72 overflow-y-auto p-3 shadow-sm">
             {selectedCourses.length === 0 ? (
               <p className="text-gray-400 text-sm text-center mt-10">
@@ -321,7 +315,7 @@ export default function CreateExam() {
       <div className="flex justify-end">
         <button
           onClick={handleSaveExam}
-          className="px-6 py-3 bg-gradient-to-r from-red-500  to-orange-500 text-white font-semibold rounded-xl shadow-lg hover:opacity-90 transition"
+          className="px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 text-white font-semibold rounded-xl shadow-lg hover:opacity-90 transition"
         >
           Créer l’examen ✅
         </button>

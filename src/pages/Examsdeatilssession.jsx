@@ -14,8 +14,6 @@ export default function ExamDetailPage() {
   const [loading, setLoading] = useState(true);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState({});
-  const [scoreNegative, setScoreNegative] = useState(0);
-  const [scoreNormal, setScoreNormal] = useState(0);
   const [finished, setFinished] = useState(false);
 
   const [notes, setNotes] = useState({});
@@ -37,7 +35,7 @@ export default function ExamDetailPage() {
           : "https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg",
       ],
     });
-    //sound.play();
+    // sound.play();
   };
 
   // Fetch session
@@ -69,7 +67,6 @@ export default function ExamDetailPage() {
 
           const initialTime =
             data.remainingTime || data.totalTime || 60 * 30;
-
           setTimeLeft(initialTime);
         }
       } catch (err) {
@@ -120,22 +117,26 @@ export default function ExamDetailPage() {
   const questions = session?.questions || [];
   const current = questions[currentQuestion];
 
+  // Toggle selection (multi or single)
   const handleAnswer = (optionKey) => {
-    if (selectedAnswers[currentQuestion]) return;
-    setSelectedAnswers((prev) => ({
-      ...prev,
-      [currentQuestion]: optionKey,
-    }));
+    const correct = Array.isArray(current.correct_answer)
+      ? current.correct_answer
+      : [current.correct_answer];
 
-    // Record scores internally (answers not revealed yet)
-    if (optionKey === current.correct_answer) {
-      setScoreNegative((s) => s + 1);
-      setScoreNormal((s) => s + 1);
-      playSound("correct");
-    } else {
-      setScoreNegative((s) => s - 0.25);
-      playSound("wrong");
-    }
+    setSelectedAnswers((prev) => {
+      const prevSelected = prev[currentQuestion] || [];
+
+      let newSelected = [];
+      if (prevSelected.includes(optionKey)) {
+        // unselect
+        newSelected = prevSelected.filter((a) => a !== optionKey);
+      } else {
+        // add
+        newSelected = [...prevSelected, optionKey];
+      }
+
+      return { ...prev, [currentQuestion]: newSelected };
+    });
   };
 
   const handleNext = () => {
@@ -156,13 +157,54 @@ export default function ExamDetailPage() {
     }
   };
 
+  const computeScores = () => {
+    let scoreToutRien = 0;
+    let scorePartiel = 0;
+    let scoreNegatif = 0;
+
+    questions.forEach((q, i) => {
+      const userAns = selectedAnswers[i] || [];
+      const correct = Array.isArray(q.correct_answer)
+        ? q.correct_answer
+        : [q.correct_answer];
+
+      const allCorrectSelected =
+        correct.length === userAns.length &&
+        correct.every((c) => userAns.includes(c));
+
+      // Tout ou Rien
+      if (allCorrectSelected) scoreToutRien += 1;
+
+      // Partiel (fractional)
+      const numCorrect = userAns.filter((a) => correct.includes(a)).length;
+      const partial = numCorrect / correct.length;
+      scorePartiel += partial;
+
+      // Partiel Négatif
+      const numWrong = userAns.filter((a) => !correct.includes(a)).length;
+      const negative = Math.max(0, partial - 0.25 * numWrong);
+      scoreNegatif += negative;
+    });
+
+    const total = questions.length;
+    return {
+      toutRien: ((scoreToutRien / total) * 20).toFixed(2),
+      partiel: ((scorePartiel / total) * 20).toFixed(2),
+      negatif: ((scoreNegatif / total) * 20).toFixed(2),
+    };
+  };
+
   const handleFinishAuto = async () => {
     setFinished(true);
+    const finalScores = computeScores();
+
     try {
       const ref = doc(db, "users", userId, "exams", id);
       await updateDoc(ref, {
         finished: true,
-        score: ((scoreNormal / questions.length) * 20).toFixed(2),
+        score_tout_rien: Number(finalScores.toutRien),
+        score_partiel: Number(finalScores.partiel),
+        score_negatif: Number(finalScores.negatif),
         updatedAt: new Date(),
       });
     } catch (err) {
@@ -225,18 +267,11 @@ export default function ExamDetailPage() {
     }));
   };
 
-  const finalScoreNegative = Math.max(
-    0,
-    ((scoreNegative / questions.length) * 20).toFixed(2)
-  );
-  const finalScoreNormal = Math.max(
-    0,
-    ((scoreNormal / questions.length) * 20).toFixed(2)
-  );
-
   const filteredQuestions = questions.filter((q) =>
     q.question_text.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const finalScores = computeScores();
 
   return (
     <div
@@ -310,17 +345,15 @@ export default function ExamDetailPage() {
                 const val = current.options?.[key];
                 if (!val) return null;
                 const isNotInterested = notInterested[currentQuestion]?.[key];
-                const selected = selectedAnswers[currentQuestion];
+                const selected = selectedAnswers[currentQuestion] || [];
+                const isSelected = selected.includes(key);
                 return (
                   <motion.div key={key} className="flex items-center gap-2">
                     <motion.button
                       whileTap={{ scale: 0.95 }}
-                      disabled={!!selected}
                       className={`flex-1 py-3 px-5 rounded-xl text-lg font-semibold transition-all duration-300 shadow ${
-                        selected
-                          ? key === selected
-                            ? "bg-blue-200 text-blue-800"
-                            : "bg-gray-100 text-gray-500"
+                        isSelected
+                          ? "bg-blue-200 text-blue-800"
                           : isNotInterested
                           ? "bg-gray-100 text-gray-400 opacity-50"
                           : "bg-green-50 hover:bg-green-100 text-gray-700"
@@ -387,28 +420,23 @@ export default function ExamDetailPage() {
             </h2>
 
             <p className="text-gray-700 text-xl mb-2">
-              Note système normal:{" "}
+              🟢 Tout ou Rien:{" "}
               <span className="font-bold text-green-600">
-                {finalScoreNormal} / 20
+                {finalScores.toutRien} / 20
+              </span>
+            </p>
+            <p className="text-gray-700 text-xl mb-2">
+              🟡 Partiel:{" "}
+              <span className="font-bold text-yellow-600">
+                {finalScores.partiel} / 20
               </span>
             </p>
             <p className="text-gray-700 text-xl mb-6">
-              Note système négatif:{" "}
+              🔴 Partiel Négatif:{" "}
               <span className="font-bold text-red-600">
-                {finalScoreNegative} / 20
+                {finalScores.negatif} / 20
               </span>
             </p>
-
-            <div className="w-full bg-gray-200 rounded-full h-4 mb-6 overflow-hidden">
-              <motion.div
-                className={`h-4 ${
-                  finalScoreNegative >= 10 ? "bg-green-500" : "bg-red-500"
-                }`}
-                initial={{ width: "0%" }}
-                animate={{ width: `${(finalScoreNegative / 20) * 100}%` }}
-                transition={{ duration: 1 }}
-              />
-            </div>
 
             {/* ✅ Show Correct Answers Review */}
             <div className="text-left mt-6 space-y-4">
@@ -426,15 +454,20 @@ export default function ExamDetailPage() {
                   {["A", "B", "C", "D", "E"].map((key) => {
                     const val = q.options?.[key];
                     if (!val) return null;
-                    const isCorrect = key === q.correct_answer;
-                    const selected = selectedAnswers[i];
+                    const correct = Array.isArray(q.correct_answer)
+                      ? q.correct_answer
+                      : [q.correct_answer];
+                    const isCorrect = correct.includes(key);
+                    const selected = selectedAnswers[i] || [];
+                    const isSelected = selected.includes(key);
+
                     return (
                       <p
                         key={key}
                         className={`ml-4 ${
                           isCorrect
                             ? "text-green-600 font-semibold"
-                            : key === selected
+                            : isSelected
                             ? "text-red-500"
                             : "text-gray-600"
                         }`}
@@ -452,10 +485,8 @@ export default function ExamDetailPage() {
               className="bg-green-500 px-6 py-3 mt-8 rounded-xl text-lg font-semibold text-white shadow hover:bg-green-600"
               onClick={() => {
                 setCurrentQuestion(0);
-                setScoreNegative(0);
-                setScoreNormal(0);
-                setFinished(false);
                 setSelectedAnswers({});
+                setFinished(false);
               }}
             >
               🔄 Recommencer

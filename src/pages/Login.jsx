@@ -1,13 +1,13 @@
-// src/pages/Login.jsx
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "../firebase/config";
 import Lottie from "lottie-react";
 import LoginAnimation from "../assets/Login.json"; // ✅ hero animation
 import { Eye, EyeOff } from "lucide-react"; // ✅ eye icons
 import "../style/WaveBackground.css";
+import { v4 as uuidv4 } from "uuid";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -17,19 +17,43 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        if (data.approved) {
-          navigate("/"); // ✅ Home page
-        } else {
-          navigate("/waiting"); // ✅ Waiting page
-        }
+      const userRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userRef);
+
+      if (!userDoc.exists()) {
+        alert("Compte introuvable.");
+        return;
       }
+
+      const data = userDoc.data();
+      const storedDeviceId = localStorage.getItem("device_session_id");
+      const newDeviceId = storedDeviceId || uuidv4();
+
+      // ✅ Save device ID in localStorage if not exists
+      if (!storedDeviceId) localStorage.setItem("device_session_id", newDeviceId);
+
+      // If a session is active and not this device → deny login
+      if (data.sessionId && data.sessionId !== newDeviceId) {
+        alert("⚠️ Votre compte est déjà actif sur un autre appareil !");
+        await auth.signOut();
+        return;
+      }
+
+      // ✅ Update Firestore with this device/session
+      await updateDoc(userRef, { sessionId: newDeviceId });
+
+      // ✅ Redirect based on approval
+      if (data.approved) {
+        navigate("/");
+      } else {
+        navigate("/waiting");
+      }
+
     } catch (err) {
       alert(err.message);
     }
@@ -37,15 +61,11 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-green-50 relative">
-      {/* ✅ Main Layout */}
       <div className="flex flex-col md:flex-row items-center justify-center w-full max-w-5xl px-6 z-10">
-        
-        {/* ✅ Hero Section */}
         <div className="w-full md:w-1/2 flex justify-center mb-8 md:mb-0">
           <Lottie animationData={LoginAnimation} loop={true} className="w-72 md:w-96" />
         </div>
 
-        {/* ✅ Login Card */}
         <div className="bg-white/90 backdrop-blur-lg p-8 rounded-2xl shadow-xl w-full md:w-1/2 max-w-md">
           <h2 className="text-3xl font-bold text-green-600 mb-6 text-center">Connexion</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -57,8 +77,6 @@ const Login = () => {
               className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
               required
             />
-
-            {/* ✅ Password Input with Toggle */}
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
@@ -93,7 +111,6 @@ const Login = () => {
         </div>
       </div>
 
-      {/* ✅ Background Waves */}
       <div className="wave-bg fixed inset-0 z-0 pointer-events-none">
         <div className="wave wave-1"></div>
         <div className="wave wave-2"></div>

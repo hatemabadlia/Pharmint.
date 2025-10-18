@@ -14,12 +14,13 @@ import {
   FaProjectDiagram,
   FaHeadset,
 } from "react-icons/fa";
-
+import { Facebook, Instagram } from "lucide-react";
 // ✅ Lottie Animations
 import heroAnim from "../assets/health.json";
 import planAnim from "../assets/plan.json";
 import premiumAnim from "../assets/premium.json";
 import studyAnim from "../assets/study.json";
+import GazaSupportBanner from "../components/Gaza";
 
 // ----------------- UI helpers -----------------
 const SectionTitle = ({ overline, title, subtitle }) => (
@@ -128,11 +129,7 @@ const LandingPage = () => {
             <br />
       <br />
 
-     <div className="w-full bg-emerald-600 text-white text-center py-2 px-4 text-sm md:text-base font-medium shadow-md">
-  📢 Avec chaque achat sur <span className="font-bold">Pharmint</span>, 
-  <span className="underline"> 5% </span> est directement reversé 
-  pour soutenir les <span className="font-bold">enfants de Gaza</span> 💚
-</div>
+     <GazaSupportBanner />
       {/* HERO */}
       <section
         id="accueil"
@@ -426,39 +423,73 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="bg-gradient-to-r from-emerald-100/80 via-white/90 to-green-50/80 backdrop-blur-md shadow-md text-green-600 hover:bg-gray-100 py-10 text-center">
-  <div className="max-w-6xl mx-auto px-6">
-    <p className="mb-4">© {new Date().getFullYear()} Pharmint — Tous droits réservés.</p>
-    
-    <div className="flex justify-center gap-6 text-lg">
-      <a
-        href="https://www.facebook.com/share/19qmqJA9t3/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="hover:text-emerald-200 transition"
-      >
-        🌐 Facebook
-      </a>
-      <a
-        href="https://www.instagram.com/pharmint.dz?igsh=MTBybDZvcTJhNnFpcA=="
-        target="_blank"
-        rel="noopener noreferrer"
-        className="hover:text-emerald-200 transition"
-      >
-        📸 Instagram
-      </a>
-      <a
-        href="#"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="hover:text-emerald-200 transition"
-      >
-        🎵 TikTok
-      </a>
-    </div>
-  </div>
-</footer>
+      <footer className="bg-gradient-to-r from-emerald-100/80 via-white/90 to-green-50/80 backdrop-blur-md shadow-md text-green-700 py-10 text-center">
+      <div className="max-w-6xl mx-auto px-6">
+        {/* © Text */}
+        <p className="mb-6 text-sm md:text-base font-medium">
+          © {new Date().getFullYear()}{" "}
+          <span className="font-bold text-emerald-700">Pharmint</span> — Tous droits réservés.
+        </p>
+
+        {/* Social Icons */}
+        <div className="flex justify-center items-center gap-8 text-green-700">
+          {/* Facebook */}
+          <a
+            href="https://www.facebook.com/share/19qmqJA9t3/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 hover:text-emerald-600 transition transform hover:scale-110"
+          >
+            <Facebook size={22} />
+            <span className="hidden sm:inline">Facebook</span>
+          </a>
+
+          {/* Instagram */}
+          <a
+            href="https://www.instagram.com/pharmint.dz?igsh=MTBybDZvcTJhNnFpcA=="
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 hover:text-emerald-600 transition transform hover:scale-110"
+          >
+            <Instagram size={22} />
+            <span className="hidden sm:inline">Instagram</span>
+          </a>
+
+          {/* TikTok (real colored logo) */}
+          <a
+            href="https://www.tiktok.com/@pharmint.dz"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 hover:opacity-80 transition transform hover:scale-110"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 256 256"
+              className="w-6 h-6"
+            >
+              <defs>
+                <linearGradient id="tiktokGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#25F4EE" />
+                  <stop offset="50%" stopColor="#FE2C55" />
+                  <stop offset="100%" stopColor="#000000" />
+                </linearGradient>
+              </defs>
+              <path
+                fill="url(#tiktokGradient)"
+                d="M224 80.1a80.2 80.2 0 0 1-47.6-15.6v60.4a68.4 68.4 0 1 1-68.4-68.4c2.5 0 5 .2 7.4.4V92a28.2 28.2 0 1 0 18.8 26.6V28h41.6a38.4 38.4 0 0 0 38.4 38.4z"
+              />
+            </svg>
+            <span className="hidden sm:inline">TikTok</span>
+          </a>
+        </div>
+
+        {/* Tagline */}
+        <p className="mt-6 text-xs md:text-sm text-gray-500">
+          Merci de soutenir{" "}
+          <span className="text-emerald-700 font-semibold">Pharmint</span> — Ensemble pour une santé et un avenir meilleurs 💚
+        </p>
+      </div>
+    </footer>
 
     </div>
   );

@@ -1,7 +1,7 @@
-// src/pages/client/CreateSession.jsx
 import React, { useState, useEffect } from "react";
 import { db, auth } from "../firebase/config";
 import { collection, getDocs, doc, getDoc, addDoc } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 
 export default function CreateSession() {
   const [modules, setModules] = useState([]);
@@ -11,19 +11,20 @@ export default function CreateSession() {
   const [questionCount, setQuestionCount] = useState(0);
   const [order, setOrder] = useState("annee");
   const [loading, setLoading] = useState(false);
-
   const [speciality, setSpeciality] = useState("");
   const [year, setYear] = useState("");
-  const [sessionTitle, setSessionTitle] = useState(""); // 👉 titre de la session
-  const [maxQuestions, setMaxQuestions] = useState(0); // 👉 nombre max dynamique
+  const [sessionTitle, setSessionTitle] = useState("");
+  const [maxQuestions, setMaxQuestions] = useState(0);
 
-  // format id en joli titre
+  const navigate = useNavigate();
+
+  // 🔠 format id en joli titre
   const formatId = (id) => {
     if (!id) return "";
     return id.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
-  // Charger modules
+  // 📘 Charger modules
   useEffect(() => {
     const fetchModules = async () => {
       setLoading(true);
@@ -77,7 +78,7 @@ export default function CreateSession() {
     fetchModules();
   }, []);
 
-  // Charger cours
+  // 📚 Charger cours du module choisi
   useEffect(() => {
     const fetchCourses = async () => {
       if (!selectedModule || !speciality || !year) {
@@ -113,14 +114,14 @@ export default function CreateSession() {
     fetchCourses();
   }, [selectedModule, speciality, year]);
 
-  // recalcul du total des questions sélectionnées
+  // 🔢 recalcul du total des questions
   useEffect(() => {
     const total = selectedCourses.reduce(
       (sum, c) => sum + (c.questionCount || 0),
       0
     );
     setMaxQuestions(total);
-    if (questionCount > total) setQuestionCount(total); // clamp
+    if (questionCount > total) setQuestionCount(total);
   }, [selectedCourses]);
 
   const handleAddCourse = (course) => {
@@ -133,12 +134,11 @@ export default function CreateSession() {
     setSelectedCourses(selectedCourses.filter((c) => c.id !== course.id));
   };
 
-  // Save session
+  // 💾 Sauvegarder la session
   const handleSaveSession = async () => {
     try {
       const userId = auth.currentUser?.uid;
       if (!userId) return alert("Utilisateur non connecté");
-
       if (!sessionTitle.trim()) return alert("⚠️ Donnez un titre à la session");
 
       const ref = collection(db, "users", userId, "sessions");
@@ -154,14 +154,10 @@ export default function CreateSession() {
       });
 
       alert("✅ Session créée avec succès !");
-      setSessionTitle("");
-      setSelectedModule("");
-      setSelectedCourses([]);
-      setAvailableCourses([]);
-      setQuestionCount(0);
-      setOrder("annee");
+      navigate("/home/sessions"); // 🔁 Redirection vers la page sessions
     } catch (err) {
       console.error("Erreur création session:", err);
+      alert("❌ Une erreur est survenue lors de la création de la session.");
     }
   };
 
@@ -205,12 +201,10 @@ export default function CreateSession() {
       </div>
 
       {/* Courses Selector */}
-      <div className="grid grid-cols-2 gap-8 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
         {/* Available */}
         <div>
-          <h2 className="font-semibold mb-3 text-gray-700">
-            📂 Liste des cours
-          </h2>
+          <h2 className="font-semibold mb-3 text-gray-700">📂 Liste des cours</h2>
           <div className="border rounded-xl h-72 overflow-y-auto p-3 shadow-sm">
             {loading ? (
               <p>Chargement...</p>

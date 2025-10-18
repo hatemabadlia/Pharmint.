@@ -1,3 +1,5 @@
+// src/App.jsx
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from './pages/Login';
 import WaitingPage from './pages/waitingpage';
@@ -29,6 +31,23 @@ import CreateTDSession from "./pages/tptdcreatesession";
 import TDSessionPage from "./pages/tdsessionpagedetails";
 
 function App() {
+  // ✅ Global copy/selection/right-click protection
+    /*useEffect(() => {
+    const handleContextMenu = (e) => e.preventDefault(); // block right-click
+    const handleSelectStart = (e) => e.preventDefault(); // block text selection
+    const handleCopy = (e) => e.preventDefault(); // block copy
+
+    document.addEventListener("contextmenu", handleContextMenu);
+    document.addEventListener("selectstart", handleSelectStart);
+    document.addEventListener("copy", handleCopy);
+
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("selectstart", handleSelectStart);
+      document.removeEventListener("copy", handleCopy);
+    };
+  }, []);
+*/
   return (
     <BrowserRouter>
       <Routes>
@@ -41,6 +60,7 @@ function App() {
         <Route path="/trial-expired" element={<TrialExpired />} />
         <Route path="/payment-success" element={<PaymentSuccess />} />
         <Route path="/payment-failed" element={<PaymentFailed />} />
+
         {/* Home: protected route */}
         <Route
           path="/home"
@@ -54,23 +74,20 @@ function App() {
           <Route path="todo" element={<TodoPage />} /> {/* /home/todo */}
           <Route path="Profile" element={<Profile />} /> 
           <Route path="subscription" element={<Subscription/>} /> 
-          <Route path="courses" element={<CoursesUser/>} /> {/* Placeholder for courses */}
-          <Route path="quizzes" element={<QuizViewer />} /> {/* /home/todo-list */}
-          <Route path="sessions" element={<SessionsPage />} /> {/* /home/sessions */}
+          <Route path="courses" element={<CoursesUser/>} /> 
+          <Route path="quizzes" element={<QuizViewer />} /> 
+          <Route path="sessions" element={<SessionsPage />} /> 
           <Route path="sessions/:id" element={<SessionDetailPage />} />
-          <Route path="exam-countdown" element={<ExamCountdown />} /> {/* /home/exam-countdown */}
-          <Route path="pomodoro" element={<Pomodoro />} /> {/* /home/pomodoro */}
-          <Route path="course-tracker" element={<CourseTracker />} /> {/* /home/course-tracker */}
+          <Route path="exam-countdown" element={<ExamCountdown />} /> 
+          <Route path="pomodoro" element={<Pomodoro />} /> 
+          <Route path="course-tracker" element={<CourseTracker />} /> 
           <Route path="examSession" element={<ExamSessionPage/>} />
           <Route path="CreateExam" element={<CreateExam/>} />
           <Route path="exams/:id" element={<ExamDetailPage />} />
           <Route path="/home/tdtp" element={<TDTPPage />} />
           <Route path="/home/tdtp/create" element={<CreateTDSession/>}/>
-          <Route path="/home/tdtp/sessions/:id" element={<TDSessionPage/>} /> {/* /home/todo-list */}
-
-          {/* Add more protected routes as needed */}
+          <Route path="/home/tdtp/sessions/:id" element={<TDSessionPage/>} /> 
         </Route>
-
       </Routes>
     </BrowserRouter>
   );

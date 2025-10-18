@@ -1,12 +1,7 @@
 // src/pages/client/SessionDetailPage.jsx
 import React, { useEffect, useState } from "react";
-import { db, auth } from "../firebase/config"; 
-import {
-  doc,
-  getDoc,
-  updateDoc,
-  arrayUnion,
-} from "firebase/firestore";
+import { db, auth } from "../firebase/config";
+import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Howl } from "howler";
@@ -21,8 +16,9 @@ export default function SessionDetailPage() {
   const [selected, setSelected] = useState(null);
   const [scoreNegative, setScoreNegative] = useState(0);
   const [scoreNormal, setScoreNormal] = useState(0);
+  const [scorePartiel, setScorePartiel] = useState(0);
   const [finished, setFinished] = useState(false);
-  const [showResponse, setShowResponse] = useState(false); // ✅ Show justification manually
+  const [showResponse, setShowResponse] = useState(false);
 
   const [notes, setNotes] = useState({});
   const [noteInput, setNoteInput] = useState("");
@@ -83,9 +79,9 @@ export default function SessionDetailPage() {
   const questions = session?.questions || [];
   const current = questions[currentQuestion];
 
-  // ✅ Updated: selected answer is stored but no score/color until "Afficher la réponse"
+  // ✅ Allow change before showing response
   const handleAnswer = (optionKey) => {
-    if (selected) return;
+    if (showResponse) return; // locked after showing
     setSelected(optionKey);
   };
 
@@ -93,13 +89,31 @@ export default function SessionDetailPage() {
     if (!selected || showResponse) return;
     setShowResponse(true);
 
+    // **Scoring System**
+    // Tout ou Rien (Normal)
     if (selected === current.correct_answer) {
-      setScoreNegative((s) => s + 1);
       setScoreNormal((s) => s + 1);
       playSound("correct");
     } else {
-      setScoreNegative((s) => s - 0.25);
       playSound("wrong");
+    }
+
+    // Partiel (if question has multiple correct options)
+    if (current.correct_options && Array.isArray(current.correct_options)) {
+      // selected could be an array if multi-choice
+      const userSelection = Array.isArray(selected) ? selected : [selected];
+      const correctSelection = current.correct_options;
+      const numCorrect = userSelection.filter((opt) => correctSelection.includes(opt)).length;
+      const partialScore = numCorrect / correctSelection.length;
+      setScorePartiel((s) => s + partialScore);
+
+      // Partiel négatif
+      const numWrong = userSelection.filter((opt) => !correctSelection.includes(opt)).length;
+      setScoreNegative((s) => s + partialScore - 0.25 * numWrong);
+    } else {
+      // Tout ou Rien only
+      if (selected === current.correct_answer) setScorePartiel((s) => s + 1);
+      else setScoreNegative((s) => s - 0.25);
     }
   };
 
@@ -190,8 +204,9 @@ export default function SessionDetailPage() {
     }));
   };
 
-  const finalScoreNegative = Math.max(0, ((scoreNegative / questions.length) * 20).toFixed(2));
   const finalScoreNormal = Math.max(0, ((scoreNormal / questions.length) * 20).toFixed(2));
+  const finalScorePartiel = Math.max(0, ((scorePartiel / questions.length) * 20).toFixed(2));
+  const finalScoreNegative = Math.max(0, ((scoreNegative / questions.length) * 20).toFixed(2));
 
   const filteredQuestions = questions.filter(
     (q) =>
@@ -252,7 +267,7 @@ export default function SessionDetailPage() {
               {currentQuestion + 1}. {current.question_text}
             </h2>
 
-            {/* Options */}
+            {/* Options with hover + selectable style */}
             <div className="grid grid-cols-1 gap-3">
               {["A", "B", "C", "D", "E"].map((key) => {
                 const val = current.options?.[key];
@@ -260,22 +275,26 @@ export default function SessionDetailPage() {
                 const isNotInterested = notInterested[currentQuestion]?.[key];
 
                 const getButtonClass = () => {
-                  if (!selected) return isNotInterested ? "bg-gray-100 text-gray-400 opacity-50" : "bg-green-50 hover:bg-green-100 text-gray-700";
+                  if (showResponse) {
+                    if (key === current.correct_answer) return "bg-green-500 text-white";
+                    if (key === selected && key !== current.correct_answer)
+                      return "bg-red-500 text-white";
+                    return "bg-gray-200 text-gray-600";
+                  }
 
-                  if (showResponse && key === current.correct_answer)
-                    return "bg-green-500 text-white";
+                  if (selected === key)
+                    return "bg-emerald-200 border-2 border-emerald-400 text-gray-900";
 
-                  if (showResponse && key === selected && key !== current.correct_answer)
-                    return "bg-red-500 text-white";
-
-                  return "bg-gray-200 text-gray-600";
+                  return isNotInterested
+                    ? "bg-gray-100 text-gray-400 opacity-50"
+                    : "bg-green-50 hover:bg-green-100 text-gray-700 transition-colors";
                 };
 
                 return (
                   <motion.div key={key} className="flex items-center gap-2">
                     <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      disabled={!!selected}
+                      whileTap={{ scale: 0.96 }}
+                      disabled={showResponse}
                       className={`flex-1 py-3 px-5 rounded-xl text-lg font-semibold transition-all duration-300 shadow ${getButtonClass()}`}
                       onClick={() => handleAnswer(key)}
                     >
@@ -309,9 +328,7 @@ export default function SessionDetailPage() {
               </div>
             )}
 
-            {/* Rest of your code stays completely the same... */}
-
-            {/* Response Section */}
+            {/* 🟩 Justification, Notes, Report, Navigation (unchanged) */}
             {showResponse && selected && (
               <div className="mt-6 bg-green-50 p-4 rounded-xl border border-green-200 text-left">
                 <h3 className="text-gray-800 font-semibold mb-2">📖 Justification :</h3>
@@ -396,6 +413,7 @@ export default function SessionDetailPage() {
             </p>
           </>
         ) : (
+          // ✅ Results Section with Tout ou Rien / Partiel / Partiel Négatif
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -404,24 +422,16 @@ export default function SessionDetailPage() {
             <h2 className="text-3xl font-bold text-gray-800 mb-4">🎉 Session terminée !</h2>
 
             <p className="text-gray-700 text-xl mb-2">
-              Note système normal:{" "}
-              <span className="font-bold text-green-600">{finalScoreNormal} / 20</span>
-            </p>
-            <p className="text-gray-700 text-xl mb-6">
-              Note système négatif:{" "}
-              <span className="font-bold text-red-600">{finalScoreNegative} / 20</span>
+              🔹 Tout ou Rien: <span className="font-bold text-green-600">{finalScoreNormal} / 20</span>
             </p>
 
-            <div className="w-full bg-gray-200 rounded-full h-4 mb-6 overflow-hidden">
-              <motion.div
-                className={`h-4 ${
-                  finalScoreNegative >= 10 ? "bg-green-500" : "bg-red-500"
-                }`}
-                initial={{ width: "0%" }}
-                animate={{ width: `${(finalScoreNegative / 20) * 100}%` }}
-                transition={{ duration: 1 }}
-              />
-            </div>
+            <p className="text-gray-700 text-xl mb-2">
+              🔹 Partiel: <span className="font-bold text-blue-600">{finalScorePartiel} / 20</span>
+            </p>
+
+            <p className="text-gray-700 text-xl mb-6">
+              🔹 Partiel Négatif: <span className="font-bold text-red-600">{finalScoreNegative} / 20</span>
+            </p>
 
             <motion.button
               whileTap={{ scale: 0.9 }}
@@ -430,6 +440,7 @@ export default function SessionDetailPage() {
                 setCurrentQuestion(0);
                 setScoreNegative(0);
                 setScoreNormal(0);
+                setScorePartiel(0);
                 setFinished(false);
                 setSelected(null);
                 setNoteInput(notes[0] || "");
@@ -440,34 +451,6 @@ export default function SessionDetailPage() {
           </motion.div>
         )}
       </motion.div>
-
-      {/* Search results */}
-      {searchTerm && (
-        <div className="w-full max-w-3xl mt-8 bg-white p-4 rounded-xl shadow border">
-          <h3 className="font-bold text-lg mb-3">Résultats :</h3>
-          {filteredQuestions.length > 0 ? (
-            <ul className="list-disc pl-6 text-left space-y-2">
-              {filteredQuestions.map((q, i) => (
-                <li
-                  key={i}
-                  className="cursor-pointer hover:text-green-600"
-                  onClick={() => {
-                    setCurrentQuestion(i);
-                    setSelected(null);
-                    setNoteInput(notes[i] || "");
-                    setReportMsg("");
-                    setShowResponse(false);
-                  }}
-                >
-                  {i + 1}. {q.question_text}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-500">Aucun résultat ❌</p>
-          )}
-        </div>
-      )}
     </div>
   );
 }

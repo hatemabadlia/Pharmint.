@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { db, auth } from "../firebase/config";
 import { collection, getDocs, doc, getDoc, addDoc } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 
 export default function CreateTDSession() {
   const [modules, setModules] = useState([]);
@@ -16,6 +17,8 @@ export default function CreateTDSession() {
   const [year, setYear] = useState("");
   const [sessionTitle, setSessionTitle] = useState("");
   const [maxTDs, setMaxTDs] = useState(0);
+
+  const navigate = useNavigate(); // 👈 used for redirect
 
   const formatId = (id) => {
     if (!id) return "";
@@ -153,15 +156,12 @@ export default function CreateTDSession() {
         createdAt: Date.now(),
       });
 
+      // ✅ redirect after save
       alert("✅ Session TD créée avec succès !");
-      setSessionTitle("");
-      setSelectedModule("");
-      setSelectedTDs([]);
-      setAvailableTDs([]);
-      setTDCount(0);
-      setOrder("annee");
+      navigate("/home/tdtp"); // 👈 redirect to sessions list
     } catch (err) {
       console.error("Erreur création session TD:", err);
+      alert("❌ Erreur lors de la création de la session !");
     }
   };
 
@@ -206,7 +206,7 @@ export default function CreateTDSession() {
 
       {/* TD Selector */}
       <div className="grid grid-cols-2 gap-8 mb-10">
-        {/* Available */}
+        {/* Available TDs */}
         <div>
           <h2 className="font-semibold mb-3 text-gray-700">📂 Liste des TD</h2>
           <div className="border rounded-xl h-72 overflow-y-auto p-3 shadow-sm">
@@ -230,11 +230,9 @@ export default function CreateTDSession() {
           </div>
         </div>
 
-        {/* Selected */}
+        {/* Selected TDs */}
         <div>
-          <h2 className="font-semibold mb-3 text-gray-700">
-            ✅ TD Sélectionnés
-          </h2>
+          <h2 className="font-semibold mb-3 text-gray-700">✅ TD Sélectionnés</h2>
           <div className="border rounded-xl h-72 overflow-y-auto p-3 shadow-sm">
             {selectedTDs.length === 0 ? (
               <p className="text-gray-400 text-sm text-center mt-10">

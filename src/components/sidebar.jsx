@@ -1,5 +1,5 @@
 // src/components/AnimatedSidebar.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -9,8 +9,6 @@ import {
   FaPuzzlePiece,
   FaUser,
   FaCrown,
-  FaChartBar,
-  FaPlusCircle,
   FaListAlt,
   FaBars,
   FaHourglassHalf,
@@ -19,22 +17,36 @@ import {
 
 // Menu en français + nouvelles sections
 const menuItems = [
-  { icon: <FaBook />, label: "Cours", path: "/home/courses" },
   { icon: <FaTasks />, label: "To-Do List", path: "/home/todo" },
-  { icon: <FaClipboardList />, label: "TD/TP QSM", path: "/home/tdtp" }, // ✅ remplacé
-  { icon: <FaPuzzlePiece />, label: "Quiz", path: "/home/sessions" },
-  { icon: <FaListAlt />, label: "Exams", path: "/home/examSession" }, // ✅ remplacé
+  { icon: <FaBook />, label: "Résumés & Mindmaps", path: "/home/courses" },
+  { icon: <FaPuzzlePiece />, label: "QCMs de Cours", path: "/home/sessions" },
+  { icon: <FaClipboardList />, label: "QCMs TD/TP", path: "/home/tdtp" },
+  { icon: <FaListAlt />, label: "Exam Simulation", path: "/home/examSession" },
+  { icon: <FaHourglassHalf />, label: "Countdown Exam", path: "/home/exam-countdown" },
+  { icon: <FaListAlt />, label: "Suivi des Cours", path: "/home/course-tracker" },
+  { icon: <FaClock />, label: "Pomodoro", path: "/home/pomodoro" },
   { icon: <FaUser />, label: "Profil", path: "/home/profile" },
   { icon: <FaCrown />, label: "Abonnement", path: "/home/subscription" },
-  { icon: <FaHourglassHalf />, label: "Countdown Exam", path: "/home/exam-countdown" },
-  { icon: <FaClock />, label: "Pomodoro", path: "/home/pomodoro" },
-  { icon: <FaListAlt />, label: "Suivi des Cours", path: "/home/course-tracker" },
-
 ];
 
 export default function AnimatedSidebar() {
   const [isOpen, setIsOpen] = useState(true);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const location = useLocation();
+
+  // Watch screen size
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Always open on desktop
+  useEffect(() => {
+    if (isDesktop) setIsOpen(true);
+  }, [isDesktop]);
 
   const sidebarVariants = {
     open: { width: "240px", transition: { duration: 0.4, type: "spring" } },
@@ -55,7 +67,7 @@ export default function AnimatedSidebar() {
       initial={false}
       animate={isOpen ? "open" : "closed"}
       variants={sidebarVariants}
-      className="h-screen flex flex-col p-3 shadow-lg"
+      className="h-screen flex flex-col p-3 shadow-lg z-40"
       style={{
         background:
           "linear-gradient(180deg, #e6fff3 0%, #bff6d8 50%, rgb(118, 255, 83) 100%)",
@@ -65,10 +77,10 @@ export default function AnimatedSidebar() {
         left: 0,
       }}
     >
-      {/* Bouton Toggle */}
+      {/* Toggle button (mobile only) */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-center mb-6 p-2 rounded-full bg-white shadow-md hover:scale-110 transition-transform"
+        className="flex items-center justify-center mb-6 p-2 rounded-full bg-white shadow-md hover:scale-110 transition-transform md:hidden"
       >
         <motion.div
           animate={{ rotate: isOpen ? 180 : 0 }}
