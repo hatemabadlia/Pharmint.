@@ -32,7 +32,7 @@ import TDSessionPage from "./pages/tdsessionpagedetails";
 
 function App() {
   // ✅ Global copy/selection/right-click protection
-    /*useEffect(() => {
+    useEffect(() => {
     const handleContextMenu = (e) => e.preventDefault(); // block right-click
     const handleSelectStart = (e) => e.preventDefault(); // block text selection
     const handleCopy = (e) => e.preventDefault(); // block copy
@@ -47,7 +47,7 @@ function App() {
       document.removeEventListener("copy", handleCopy);
     };
   }, []);
-*/
+
   return (
     <BrowserRouter>
       <Routes>
