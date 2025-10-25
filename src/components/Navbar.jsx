@@ -1,11 +1,16 @@
 // src/components/Navbar.jsx
+
 import { useState, useEffect } from "react";
 import { Link } from "react-scroll";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Sun, Moon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import logo from "../assets/logo.png";
+import { useTheme } from "../context/ThemeContext";
 
 const Navbar = () => {
+  // 🔑 Get theme state and toggle function
+  const { theme, toggleTheme } = useTheme(); 
+  
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -16,33 +21,67 @@ const Navbar = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // ✅ Colors based on scroll
-  const textColor = scrolled ? "text-gray-800" : "text-green-700";
-  const borderColor = scrolled
-    ? "bg-green-600 text-white hover:bg-green-700"
-    : "bg-white text-green-600 hover:bg-gray-100";
-  const btnBg = scrolled
-    ? "bg-green-600 text-white hover:bg-green-700"
-    : "bg-white text-green-600 hover:bg-gray-100";
+  // 💡 Helper function to get classes for the main background
+  const getNavBgClasses = () => {
+    if (theme === 'dark') {
+        // Dark Mode Styles (Ignoring scrolled state for simplicity, using a dark background)
+        return scrolled 
+            ? "bg-gray-900/80 backdrop-blur-xl shadow-xl border-b border-gray-800" 
+            : "bg-gray-900/90 backdrop-blur-md shadow-xl";
+    }
+    // Light Mode Styles (Original logic)
+    return scrolled
+        ? "bg-white/40 backdrop-blur-xl shadow-md"
+        : "bg-gradient-to-r from-emerald-100/80 via-white/90 to-green-50/80 backdrop-blur-md shadow-md";
+  };
+  
+  // 💡 Helper function to get classes for menu links
+  const getLinkClasses = () => {
+      if (theme === 'dark') {
+          return scrolled ? 'text-gray-100' : 'text-gray-300';
+      }
+      return scrolled ? 'text-gray-800' : 'text-green-700';
+  };
+
+  // 💡 Helper function for the "Connexion" button (Secondary)
+  const getLoginButtonClasses = () => {
+      if (theme === 'dark') {
+          return scrolled
+            ? 'bg-green-700 text-white hover:bg-green-600 border-green-700'
+            : 'bg-gray-800 text-green-400 hover:bg-gray-700 border-gray-700';
+      }
+      return scrolled
+        ? 'bg-green-600 text-white hover:bg-green-700 border-green-600'
+        : 'bg-white text-green-600 hover:bg-gray-100 border-green-200';
+  };
+
+  // 💡 Helper function for the "S'inscrire" button (Primary CTA)
+  const getSignupButtonClasses = () => {
+      if (theme === 'dark') {
+          return scrolled
+            ? 'bg-green-700 text-white hover:bg-green-600'
+            : 'bg-green-700 text-white hover:bg-green-600'; // Keep primary CTA bright
+      }
+      return scrolled
+        ? 'bg-green-600 text-white hover:bg-green-700'
+        : 'bg-white text-green-600 hover:bg-gray-100';
+  };
+
 
   return (
     <motion.nav
       initial={{ y: -80, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
-      className={`fixed w-full z-50 transition-all duration-300 ${
-        scrolled
-          ? "bg-white/40 backdrop-blur-xl shadow-md fixed w-full z-50  "
-          : "bg-gradient-to-r from-emerald-100/80 via-white/90 to-green-50/80 backdrop-blur-md shadow-md"
-      }`}
+      // 🔑 Use the JavaScript helper function here
+      className={`fixed w-full z-50 transition-all duration-300 ${getNavBgClasses()}`}
     >
       <div className="container mx-auto flex justify-between items-center px-4 py-3">
         {/* ✅ Logo */}
         <img src={logo} alt="Logo" className="h-9 drop-shadow-md" />
 
         {/* ✅ Desktop Menu */}
-        {/* ✅ Desktop Menu */}
-        <ul className={`hidden md:flex gap-8 font-medium text-sm ${textColor}`}>
+        <ul className={`hidden md:flex gap-8 font-medium text-sm ${getLinkClasses()}`}>
           {[
             { id: "accueil", label: "Accueil" },
             { id: "specs", label: "Spécifications" },
@@ -59,8 +98,9 @@ const Navbar = () => {
               >
                 {item.label}
                 <span
+                  // 🔑 Link underline color
                   className={`absolute left-0 bottom-[-4px] w-0 h-[2px] ${
-                    scrolled ? "bg-green-600" : "bg-white"
+                    theme === 'dark' ? 'bg-green-400' : (scrolled ? 'bg-green-600' : 'bg-white')
                   } group-hover:w-full transition-all duration-300`}
                 ></span>
               </Link>
@@ -68,29 +108,55 @@ const Navbar = () => {
           ))}
         </ul>
 
-        {/* ✅ Desktop Buttons */}
-        <div className="hidden md:flex gap-3 text-sm">
+        {/* ✅ Desktop Buttons and Theme Toggle */}
+        <div className="hidden md:flex gap-3 text-sm items-center">
+          {/* 🔑 THEME TOGGLE BUTTON - Desktop */}
+          <button
+            onClick={toggleTheme}
+            className={`p-2 rounded-full ${getLinkClasses()} hover:bg-gray-100 ${theme === 'dark' ? 'hover:bg-gray-700' : ''} transition`}
+            aria-label="Toggle dark mode"
+          >
+            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+          </button>
+          
+          {/* Connexion Button (Secondary Action) */}
           <a
             href="/login"
-            className={`px-4 py-1.5 rounded-lg hover:scale-105 transition font-medium border ${borderColor}`}
+            // 🔑 Use JavaScript helper function here
+            className={`px-4 py-1.5 rounded-lg hover:scale-105 transition font-medium border ${getLoginButtonClasses()}`}
           >
             Connexion
           </a>
+          
+          {/* S'inscrire Button (Primary CTA) */}
           <a
             href="/signup"
-            className={`px-4 py-1.5 rounded-lg transition font-medium ${btnBg}`}
+            // 🔑 Use JavaScript helper function here
+            className={`px-4 py-1.5 rounded-lg transition font-medium ${getSignupButtonClasses()}`}
           >
             S'inscrire
           </a>
         </div>
 
-        {/* ✅ Mobile Menu Button */}
-        <button
-          className={`md:hidden ${textColor}`}
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          {isOpen ? <X size={26} /> : <Menu size={26} />}
-        </button>
+        {/* ✅ Mobile Menu Button & Theme Toggle */}
+        <div className="md:hidden flex items-center gap-2">
+            {/* 🔑 MOBILE THEME TOGGLE BUTTON */}
+            <button
+                onClick={toggleTheme}
+                className={`p-1 rounded-full ${getLinkClasses()}`}
+                aria-label="Toggle dark mode"
+            >
+                {theme === 'light' ? <Moon size={22} /> : <Sun size={22} />}
+            </button>
+            
+            {/* Mobile Menu Icon */}
+            <button
+              className={`${getLinkClasses()}`}
+              onClick={() => setIsOpen(!isOpen)}
+            >
+              {isOpen ? <X size={26} /> : <Menu size={26} />}
+            </button>
+        </div>
       </div>
 
       {/* ✅ Mobile Dropdown with Animation */}
@@ -101,7 +167,12 @@ const Navbar = () => {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="md:hidden bg-gradient-to-b from-green-600 to-emerald-500 px-4 py-4 space-y-4 text-white text-sm shadow-lg"
+            // 🔑 Mobile Menu BG based on theme
+            className={`md:hidden px-4 py-4 space-y-4 text-sm shadow-lg ${
+                theme === 'dark' 
+                ? 'bg-gradient-to-b from-gray-800 to-gray-900 text-gray-100'
+                : 'bg-gradient-to-b from-green-600 to-emerald-500 text-white'
+            }`}
           >
             {[
               { id: "accueil", label: "Accueil" },
@@ -115,6 +186,7 @@ const Navbar = () => {
                 to={item.id}
                 smooth
                 duration={600}
+                // Links inside the dark mobile menu are always light text
                 className="block hover:pl-2 transition-all"
                 onClick={() => setIsOpen(false)}
               >
@@ -126,13 +198,21 @@ const Navbar = () => {
             <div className="flex flex-col gap-2 pt-2">
               <a
                 href="/login"
-                className="px-3 py-2 border border-white text-white rounded-lg hover:bg-white hover:text-green-600 transition text-center"
+                className={`px-3 py-2 border rounded-lg transition text-center ${
+                    theme === 'dark' 
+                    ? 'border-gray-600 text-gray-100 hover:bg-gray-700'
+                    : 'border-white text-white hover:bg-white hover:text-green-600'
+                }`}
               >
                 Connexion
               </a>
               <a
                 href="/signup"
-                className="px-3 py-2 bg-white text-green-600 rounded-lg hover:bg-gray-100 transition text-center"
+                className={`px-3 py-2 rounded-lg transition text-center ${
+                    theme === 'dark' 
+                    ? 'bg-green-700 text-white hover:bg-green-600'
+                    : 'bg-white text-green-600 hover:bg-gray-100'
+                }`}
               >
                 S'inscrire
               </a>

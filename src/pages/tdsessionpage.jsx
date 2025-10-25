@@ -1,3 +1,4 @@
+// src/pages/client/TDTPPage.jsx
 import React, { useEffect, useState } from "react";
 import { db, auth } from "../firebase/config";
 import { collection, onSnapshot, doc, deleteDoc } from "firebase/firestore";
@@ -5,8 +6,12 @@ import { useNavigate } from "react-router-dom";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTheme } from "../context/ThemeContext"; // 🔑 Import useTheme
 
 export default function TDTPPage() {
+  // 🔑 Get theme state
+  const { theme } = useTheme();
+
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("Toutes");
@@ -38,7 +43,7 @@ export default function TDTPPage() {
     return () => unsub();
   }, [userId]);
 
-  // Delete session
+  // Delete session (Original logic maintained)
   const handleDelete = async (id) => {
     if (!window.confirm("⚠️ Voulez-vous vraiment supprimer cette session ? Cette action est irréversible."))
       return;
@@ -67,11 +72,13 @@ export default function TDTPPage() {
             endAngle={-270}
           >
             <Cell fill={color} />
-            <Cell fill="#e5e7eb" />
+            {/* 🔑 Track color changes with theme */}
+            <Cell fill={theme === 'dark' ? '#374151' : '#e5e7eb'} /> 
           </Pie>
         </PieChart>
       </ResponsiveContainer>
-      <span className="absolute text-sm font-bold text-gray-800">{label}</span>
+      {/* 🔑 Label color changes with theme */}
+      <span className={`absolute text-sm font-bold transition-colors ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>{label}</span>
     </div>
   );
 
@@ -87,17 +94,21 @@ export default function TDTPPage() {
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">🧪 Mes TD / TP</h1>
+        {/* 🔑 Title Text Color */}
+        <h1 className={`text-2xl md:text-3xl font-bold transition-colors ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>🧪 Mes TD / TP</h1>
 
         <div className="flex items-center gap-3">
           {/* Filter Bar */}
-          <div className="flex bg-gray-100 rounded-lg overflow-hidden shadow-sm">
+          {/* 🔑 Filter Container Styling */}
+          <div className={`rounded-lg overflow-hidden shadow-sm transition-colors ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
             {["Toutes", "En cours", "Terminées"].map((opt) => (
               <button
                 key={opt}
                 onClick={() => setFilter(opt)}
                 className={`px-4 py-2 text-sm font-medium transition-all ${
-                  filter === opt ? "bg-indigo-600 text-white" : "text-gray-700 hover:bg-gray-200"
+                  filter === opt 
+                    ? "bg-indigo-600 text-white" 
+                    : (theme === 'dark' ? 'text-gray-200 hover:bg-gray-600' : 'text-gray-700 hover:bg-gray-200')
                 }`}
               >
                 {opt}
@@ -108,7 +119,7 @@ export default function TDTPPage() {
           {/* Create Button */}
           <button
             onClick={() => navigate("/home/tdtp/create")}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition"
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition shadow-md"
           >
             <PlusCircle className="w-5 h-5" />
             Nouvelle Session
@@ -118,15 +129,15 @@ export default function TDTPPage() {
 
       {/* Sessions */}
       {loading ? (
-        <p className="text-center text-gray-500">⏳ Chargement...</p>
+        <p className={`text-center transition-colors ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>⏳ Chargement...</p>
       ) : filteredSessions.length === 0 ? (
-        <div className="text-center text-gray-600 mt-20">
+        <div className={`text-center mt-20 transition-colors ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
           <p className="mb-4">
             Aucune session {filter !== "Toutes" ? filter.toLowerCase() : ""} trouvée.
           </p>
           <button
             onClick={() => navigate("/home/tdtp/create")}
-            className="px-5 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition"
+            className="px-5 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-md"
           >
             🚀 Créer votre première session TD/TP
           </button>
@@ -147,14 +158,19 @@ export default function TDTPPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.3 }}
-                  className="relative cursor-pointer rounded-xl shadow-md p-6 bg-white hover:shadow-lg hover:scale-[1.02] transition flex flex-col items-center group"
+                  // 🔑 Session Card Styling
+                  className={`relative cursor-pointer rounded-xl shadow-md p-6 transition flex flex-col items-center group ring-1 ${
+                    theme === 'dark' 
+                      ? 'bg-gray-800 hover:bg-gray-700 ring-gray-700' 
+                      : 'bg-white hover:shadow-lg hover:scale-[1.02] ring-gray-200'
+                  }`}
                   onClick={() => navigate(`/home/tdtp/sessions/${s.id}`)}
                 >
                   {/* Delete button */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation(); // prevent navigating when clicking delete
-                      handleDelete(s.id);
+                      handleDelete(s.id); // Original function call restored
                     }}
                     className="absolute top-3 right-3 p-2 text-red-500 hover:text-white hover:bg-red-600 rounded-full transition opacity-0 group-hover:opacity-100"
                   >
@@ -162,22 +178,22 @@ export default function TDTPPage() {
                   </button>
 
                   {/* Title */}
-                  <h2 className="text-lg font-bold mb-2 text-gray-800 text-center">
+                  <h2 className={`text-lg font-bold mb-2 text-center transition-colors ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>
                     {s.title || "Session TD/TP"}
                   </h2>
 
                   {/* Date */}
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className={`text-sm mb-4 transition-colors ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                     📅 {s.createdAt ? s.createdAt.toLocaleString() : "Date inconnue"}
                   </p>
 
                   {/* Circle */}
                   {s.finished
-                    ? renderCircle((s.score / 20) * 100, "#22c55e", `${s.score}/20`)
+                    ? renderCircle((s.score / 20) * 100, "#22c55e", `${s.score}/20`) 
                     : renderCircle(progress, "#6366f1", `${Math.round(progress)}%`)}
 
                   {/* Status */}
-                  <p className="mt-3 text-sm font-medium text-gray-700">
+                  <p className={`mt-3 text-sm font-medium transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
                     {s.finished ? "✅ Terminé" : "⏳ En cours"}
                   </p>
                 </motion.div>

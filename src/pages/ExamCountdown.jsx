@@ -2,8 +2,12 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Trash2 } from "lucide-react";
+import { useTheme } from "../context/ThemeContext"; // 🔑 Import useTheme
 
 export default function ExamCountdown() {
+  // 🔑 Get theme state
+  const { theme } = useTheme(); 
+
   const [exams, setExams] = useState([]);
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
@@ -11,13 +15,21 @@ export default function ExamCountdown() {
 
   // ✅ Load exams from localStorage
   useEffect(() => {
-    const savedExams = localStorage.getItem("exams");
-    if (savedExams) setExams(JSON.parse(savedExams));
+    try { // Added try-catch for localStorage safety
+        const savedExams = localStorage.getItem("exams");
+        if (savedExams) setExams(JSON.parse(savedExams));
+    } catch (e) {
+        console.error("Error loading exams from localStorage:", e);
+    }
   }, []);
 
   // ✅ Save exams to localStorage when updated
   useEffect(() => {
-    localStorage.setItem("exams", JSON.stringify(exams));
+    try { // Added try-catch for localStorage safety
+        localStorage.setItem("exams", JSON.stringify(exams));
+    } catch (e) {
+        console.error("Error saving exams to localStorage:", e);
+    }
   }, [exams]);
 
   // ✅ Countdown calculation
@@ -60,13 +72,22 @@ export default function ExamCountdown() {
 
   // ✅ Delete exam
   const deleteExam = (id) => {
+    // In a real app, you'd use a confirmation modal here instead of alert/confirm.
     setExams(exams.filter((exam) => exam.id !== id));
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex flex-col items-center p-6">
+    // 🔑 Conditional background gradient
+    <div className={`min-h-screen flex flex-col items-center p-6 transition-colors duration-300 ${
+        theme === 'dark' 
+        ? 'bg-gray-900' // Simple dark background
+        : 'bg-gradient-to-br from-green-50 to-green-100' // Original light gradient
+    }`}>
       <motion.h1
-        className="text-3xl font-extrabold mb-8 text-green-800"
+        // 🔑 Title text color
+        className={`text-3xl font-extrabold mb-8 transition-colors ${
+            theme === 'dark' ? 'text-emerald-400' : 'text-green-800'
+        }`}
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
@@ -84,13 +105,23 @@ export default function ExamCountdown() {
           placeholder="Titre de l'examen"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="flex-1 p-3 border rounded-xl shadow-sm"
+          // 🔑 Input styling
+          className={`flex-1 p-3 border rounded-xl shadow-sm outline-none transition-colors duration-300 ${
+            theme === 'dark'
+            ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400 focus:ring-emerald-500'
+            : 'border-gray-300 focus:ring-2 focus:ring-green-500'
+          }`}
         />
         <input
           type="datetime-local"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="p-3 border rounded-xl shadow-sm"
+          // 🔑 Input styling
+          className={`p-3 border rounded-xl shadow-sm outline-none transition-colors duration-300 ${
+            theme === 'dark'
+            ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400 focus:ring-emerald-500'
+            : 'border-gray-300 focus:ring-2 focus:ring-green-500'
+          }`}
         />
         <button
           onClick={addExam}
@@ -107,25 +138,32 @@ export default function ExamCountdown() {
           return (
             <motion.div
               key={exam.id}
-              className="p-6 rounded-2xl shadow-md bg-white flex justify-between items-center border border-green-200"
+              // 🔑 Card styling
+              className={`p-6 rounded-2xl shadow-md flex justify-between items-center border transition-colors duration-300 ${
+                theme === 'dark'
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-white border-green-200'
+              }`}
               whileHover={{ scale: 1.02 }}
             >
               <div>
-                <h2 className="text-xl font-bold text-green-800">
+                <h2 className={`text-xl font-bold transition-colors ${
+                    theme === 'dark' ? 'text-gray-100' : 'text-green-800'
+                }`}>
                   {exam.title}
                 </h2>
                 {countdown ? (
-                  <p className="text-green-700 font-semibold">
+                  <p className="text-green-600 font-semibold dark:text-emerald-400">
                     {countdown.days}j : {countdown.hours}h : {countdown.minutes}m :{" "}
                     {countdown.seconds}s
                   </p>
                 ) : (
-                  <p className="text-red-600 font-semibold">🚨 Expiré</p>
+                  <p className="text-red-500 font-semibold">🚨 Expiré</p>
                 )}
               </div>
               <button
                 onClick={() => deleteExam(exam.id)}
-                className="text-red-600 hover:text-red-800 transition"
+                className="text-red-500 hover:text-red-700 transition dark:text-red-400 dark:hover:text-red-300"
               >
                 <Trash2 size={22} />
               </button>

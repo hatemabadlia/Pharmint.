@@ -1,9 +1,12 @@
-// src/components/TodoStats.jsx
 import React, { useMemo } from "react";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
+import { useTheme } from "../context/ThemeContext"; // 🔑 Import useTheme
 
 export default function TodoStats({ tasks = [] }) {
+  // 🔑 Get theme state
+  const { theme } = useTheme(); 
+
   // overall
   const totals = useMemo(() => {
     const total = tasks.length;
@@ -36,42 +39,80 @@ export default function TodoStats({ tasks = [] }) {
     const arr = Object.values(map).sort((a, b) => a.month.localeCompare(b.month));
     return arr.slice(-6).map((m) => ({ name: m.month, completed: m.completed }));
   }, [tasks]);
+  
+  // 💡 --- Chart Style Definitions ---
+  // Define colors for charts based on theme
+  const axisStrokeColor = theme === 'dark' ? '#9ca3af' : '#6b7280'; // gray-400 / gray-500
+  const tooltipBg = theme === 'dark' ? '#1f2937' : '#ffffff'; // gray-800 / white
+  const tooltipColor = theme === 'dark' ? '#f9fafb' : '#1f2937'; // gray-100 / gray-800
+  // ------------------------------------
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
-      <div className="bg-white rounded-2xl p-4 shadow flex items-center justify-between">
+      {/* 🔑 Progress Card */}
+      <div className={`rounded-2xl p-4 shadow-md flex items-center justify-between transition-colors ${
+        theme === 'dark' ? 'bg-gray-800 ring-1 ring-gray-700' : 'bg-white'
+      }`}>
         <div>
-          <h3 className="text-lg font-semibold text-green-700">Progress</h3>
-          <p className="text-sm text-gray-600">Tâches complétées</p>
+          {/* 🔑 Text */}
+          <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-emerald-400' : 'text-green-700'}`}>Progress</h3>
+          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Tâches complétées</p>
         </div>
         <div className="text-right">
-          <p className="text-2xl font-bold text-green-700">{totals.done}/{totals.total}</p>
-          <p className="text-sm text-gray-500">{totals.percent}%</p>
+          {/* 🔑 Text */}
+          <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-emerald-400' : 'text-green-700'}`}>{totals.done}/{totals.total}</p>
+          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{totals.percent}%</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-4 shadow">
-        <h4 className="font-semibold text-green-700 mb-2">Weekly Completed</h4>
+      {/* 🔑 Weekly Chart Card */}
+      <div className={`rounded-2xl p-4 shadow-md transition-colors ${
+        theme === 'dark' ? 'bg-gray-800 ring-1 ring-gray-700' : 'bg-white'
+      }`}>
+        {/* 🔑 Text */}
+        <h4 className={`font-semibold mb-2 ${theme === 'dark' ? 'text-emerald-400' : 'text-green-700'}`}>Weekly Completed</h4>
         <div style={{ width: "100%", height: 200 }}>
           <ResponsiveContainer>
             <BarChart data={weeklyData}>
-              <XAxis dataKey="name" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
+              {/* 🔑 Chart Axis & Tooltip Styling */}
+              <XAxis dataKey="name" stroke={axisStrokeColor} />
+              <YAxis allowDecimals={false} stroke={axisStrokeColor} />
+              <Tooltip 
+                contentStyle={{ 
+                  background: tooltipBg, 
+                  border: 'none', 
+                  borderRadius: '0.5rem', 
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)' 
+                }} 
+                labelStyle={{ color: tooltipColor, fontWeight: 'bold' }} 
+              />
               <Bar dataKey="completed" fill="#16a34a" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-4 shadow">
-        <h4 className="font-semibold text-green-700 mb-2">Monthly Completed (last months)</h4>
+      {/* 🔑 Monthly Chart Card */}
+      <div className={`rounded-2xl p-4 shadow-md transition-colors ${
+        theme === 'dark' ? 'bg-gray-800 ring-1 ring-gray-700' : 'bg-white'
+      }`}>
+        {/* 🔑 Text */}
+        <h4 className={`font-semibold mb-2 ${theme === 'dark' ? 'text-emerald-400' : 'text-green-700'}`}>Monthly Completed (last months)</h4>
         <div style={{ width: "100%", height: 200 }}>
           <ResponsiveContainer>
             <BarChart data={monthlyData}>
-              <XAxis dataKey="name" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
+              {/* 🔑 Chart Axis & Tooltip Styling */}
+              <XAxis dataKey="name" stroke={axisStrokeColor} />
+              <YAxis allowDecimals={false} stroke={axisStrokeColor} />
+              <Tooltip 
+                contentStyle={{ 
+                  background: tooltipBg, 
+                  border: 'none', 
+                  borderRadius: '0.5rem', 
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)' 
+                }} 
+                labelStyle={{ color: tooltipColor, fontWeight: 'bold' }} 
+              />
               <Bar dataKey="completed" fill="#059669" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

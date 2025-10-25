@@ -3,10 +3,32 @@ import React, { useEffect, useState } from "react";
 import { db, auth } from "../firebase/config";
 import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { useParams } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Howl } from "howler";
+import { useTheme } from "../context/ThemeContext"; // 🔑 Import useTheme
+import { XCircle, AlertTriangle } from "lucide-react"; // 🔑 Import icons
+
+// 💡 Custom Error/Message Box Component (replaces alert())
+const ErrorMessage = ({ message, onClose, theme }) => (
+  <motion.div
+    initial={{ opacity: 0, y: -20 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -20 }}
+    transition={{ duration: 0.3 }}
+    className="fixed top-4 left-1/2 -translate-x-1/2 p-4 bg-red-600 text-white rounded-xl shadow-2xl flex items-center gap-3 z-50 max-w-sm w-11/12 sm:w-auto ring-4 ring-red-400"
+  >
+    <XCircle size={24} />
+    <span className="font-medium text-sm">{message}</span>
+    <button onClick={onClose} className="ml-auto p-1 rounded-full hover:bg-red-700 transition">
+      <XCircle size={16} />
+    </button>
+  </motion.div>
+);
 
 export default function TDSessionPage() {
+  // 🔑 Get theme state
+  const { theme } = useTheme();
+
   const { id } = useParams();
   const userId = auth.currentUser?.uid;
 
@@ -33,6 +55,13 @@ export default function TDSessionPage() {
   const [reportMsg, setReportMsg] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [notInterested, setNotInterested] = useState({});
+  const [errorMessage, setErrorMessage] = useState(null); // 🔑 Error state
+
+  const displayError = (message) => {
+    setErrorMessage(message);
+    setTimeout(() => setErrorMessage(null), 5000); 
+  };
+
 
   const playSound = (type) => {
     const sound = new Howl({
@@ -84,8 +113,9 @@ export default function TDSessionPage() {
     fetchTDSession();
   }, [userId, id]);
 
-  if (loading) return <p className="text-center mt-10">Chargement...</p>;
-  if (!session) return <p className="text-center mt-10">Session TD introuvable ❌</p>;
+  // 🔑 Loading text color
+  if (loading) return <p className={`text-center mt-10 transition-colors ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Chargement...</p>;
+  if (!session) return <p className={`text-center mt-10 transition-colors ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>Session TD introuvable ❌</p>;
 
   const questions = session?.questions || [];
   const current = questions[currentQuestion];
@@ -133,48 +163,38 @@ export default function TDSessionPage() {
     const totalCorrect = correctArr.length || 1;
 
     // ---------- Tout ou Rien ----------
-    // full point if user picked exactly all correct and nothing else (set equality)
     const pickedSet = new Set(userArr);
     const correctSet = new Set(correctArr);
     let toutOuRienPoint = 0;
     if (pickedSet.size > 0 && pickedSet.size === correctSet.size) {
-      // check equality
       const allMatch = [...correctSet].every((x) => pickedSet.has(x));
       if (allMatch) toutOuRienPoint = 1;
     }
 
     // ---------- Partiel (positive) ----------
-    // fraction of correct answers picked (0..1)
     const partielPoint = totalCorrect ? numCorrectPicked / totalCorrect : 0;
 
     // ---------- Partiel Négatif ----------
-    // start with same partial positive then subtract penalty per wrong pick
-    const penaltyPerWrong = 0.25; // same penalty you used previously
+    const penaltyPerWrong = 0.25;
     const partielNegPoint = Math.max(0, partielPoint - numWrongPicked * penaltyPerWrong);
 
     // ---------- single-answer fallback ----------
     if (!isMulti) {
-      // single-answer logic consistent with earlier behavior:
       if (selected === current.correct_answer) {
-        // correct
-        // keep same: normal +1, partiel +1, negative unaffected
         setScoreNormal((s) => s + 1);
         setScorePartiel((s) => s + 1);
         setScoreNegative((s) => s + 1);
         playSound("correct");
       } else {
-        // wrong
         setScoreNegative((s) => s - penaltyPerWrong);
-        setScorePartiel((s) => s + 0); // no partial
+        setScorePartiel((s) => s + 0);
         playSound("wrong");
       }
     } else {
       // multi-answer accumulators
       setScoreNormal((s) => s + toutOuRienPoint);
       setScorePartiel((s) => s + partielPoint);
-      // for negative, accumulate partielNegPoint but also keep earlier "negative style"
       setScoreNegative((s) => s + partielNegPoint);
-      // sound: play correct sound if there is at least one correct picked and no wrong picks OR full correct
       if (toutOuRienPoint === 1 || (numCorrectPicked > 0 && numWrongPicked === 0)) {
         playSound("correct");
       } else {
@@ -206,13 +226,14 @@ export default function TDSessionPage() {
         // Save three scoring styles to Firestore
         await updateDoc(ref, {
           finished: true,
-          score_tout_ou_rien: ((scoreNormal / questions.length) * 20).toFixed(2),
-          score_partiel: ((scorePartiel / questions.length) * 20).toFixed(2),
-          score_partiel_negative: ((scoreNegative / questions.length) * 20).toFixed(2),
+          score_tout_ou_rien: ((scoreNormal / (questions.length || 1)) * 20).toFixed(2),
+          score_partiel: ((scorePartiel / (questions.length || 1)) * 20).toFixed(2),
+          score_partiel_negative: ((scoreNegative / (questions.length || 1)) * 20).toFixed(2),
           updatedAt: new Date(),
         });
       } catch (err) {
         console.error("Erreur update finish:", err);
+        displayError("Erreur lors de l'enregistrement du score final."); // ❌ Replaced alert
       }
     }
   };
@@ -228,7 +249,7 @@ export default function TDSessionPage() {
   };
 
   const handleSaveNote = async () => {
-    if (!noteInput.trim()) return alert("Écrivez une note.");
+    if (!noteInput.trim()) return displayError("Écrivez une note."); // ❌ Replaced alert()
     try {
       const ref = doc(db, "users", userId, "td_sessions", id);
       await updateDoc(ref, {
@@ -246,14 +267,15 @@ export default function TDSessionPage() {
         [currentQuestion]: noteInput,
       }));
 
-      alert("✅ Note enregistrée !");
+      displayError("✅ Note enregistrée !"); // ❌ Replaced alert()
     } catch (err) {
       console.error("Erreur note:", err);
+      displayError("Erreur lors de l'enregistrement de la note.");
     }
   };
 
   const handleReport = async () => {
-    if (!reportMsg.trim()) return alert("Écrivez un message pour le rapport.");
+    if (!reportMsg.trim()) return displayError("Écrivez un message pour le rapport."); // ❌ Replaced alert()
     try {
       const ref = doc(db, "users", userId, "td_sessions", id);
       await updateDoc(ref, {
@@ -265,10 +287,11 @@ export default function TDSessionPage() {
           timestamp: new Date().toISOString(),
         }),
       });
-      alert("✅ Rapport envoyé !");
+      displayError("✅ Rapport envoyé !"); // ❌ Replaced alert()
       setReportMsg("");
     } catch (err) {
       console.error("Erreur rapport:", err);
+      displayError("Erreur lors de l'envoi du rapport.");
     }
   };
 
@@ -313,30 +336,32 @@ export default function TDSessionPage() {
 
       if (isCorrect) return "bg-green-500 text-white";
       if (userPicked && !isCorrect) return "bg-red-500 text-white";
-      return "bg-gray-200 text-gray-600";
+      return theme === 'dark' ? "bg-gray-600 text-gray-200" : "bg-gray-200 text-gray-600"; // 🔑 Dark mode adjustment
     }
 
     // before reveal: show selected differently
     if (isMulti) {
       const userSelected = Array.isArray(selected) && selected.includes(key);
-      if (userSelected) return "bg-blue-200 text-gray-800 border-2 border-blue-300";
+      if (userSelected) return theme === 'dark' ? "bg-blue-700 text-white border-2 border-blue-500" : "bg-blue-200 text-gray-800 border-2 border-blue-300"; // 🔑 Dark mode adjustment
     } else {
-      if (selected === key) return "bg-blue-200 text-gray-800 border-2 border-blue-300";
+      if (selected === key) return theme === 'dark' ? "bg-blue-700 text-white border-2 border-blue-500" : "bg-blue-200 text-gray-800 border-2 border-blue-300"; // 🔑 Dark mode adjustment
     }
 
     // notSelected and notInterested visuals
     const isNotInterested = notInterested[currentQuestion]?.[key];
-    if (isNotInterested) return "bg-gray-100 text-gray-400 opacity-50";
-    return "bg-green-50 hover:bg-green-100 text-gray-700 transition-colors";
+    if (isNotInterested) return theme === 'dark' ? "bg-gray-700 text-gray-500 opacity-50" : "bg-gray-100 text-gray-400 opacity-50"; // 🔑 Dark mode adjustment
+    return theme === 'dark' ? "bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors" : "bg-green-50 hover:bg-green-100 text-gray-700 transition-colors"; // 🔑 Dark mode adjustment
   };
 
   return (
-    <div
-      className="flex flex-col items-center min-h-screen p-6"
-      style={{
-        background: "linear-gradient(180deg, #ffffff 0%, #d4f8d4 100%)",
-      }}
-    >
+    // 🔑 Main background gradient removed (handled by Home.jsx)
+    <div className="flex flex-col items-center min-h-screen p-6">
+      
+      {/* 🔑 Error Message Display */}
+      <AnimatePresence>
+        {errorMessage && <ErrorMessage message={errorMessage} onClose={() => setErrorMessage(null)} theme={theme} />}
+      </AnimatePresence>
+
       {/* 🔍 Search bar */}
       <div className="w-full max-w-3xl mb-6">
         <input
@@ -344,12 +369,22 @@ export default function TDSessionPage() {
           placeholder="🔍 Rechercher une question TD..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full p-3 rounded-xl border border-green-300 shadow"
+          // 🔑 Input Styling
+          className={`w-full p-3 rounded-xl border shadow outline-none transition-colors duration-300 ${
+            theme === 'dark'
+            ? 'bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-400 focus:ring-emerald-500'
+            : 'border-green-300 shadow'
+          }`}
         />
       </div>
 
       <motion.div
-        className="w-full max-w-3xl bg-white rounded-2xl shadow-xl p-8 text-center border border-green-200"
+        // 🔑 Quiz Card Styling
+        className={`w-full max-w-3xl rounded-2xl shadow-xl p-8 text-center border transition-colors duration-300 ${
+            theme === 'dark'
+            ? 'bg-gray-800 border-gray-700 shadow-emerald-900/50'
+            : 'bg-white border-green-200'
+        }`}
         initial={{ opacity: 0, scale: 0.9, y: 50 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.6 }}
@@ -357,7 +392,7 @@ export default function TDSessionPage() {
         {!finished ? (
           <>
             {/* Progress bar */}
-            <div className="w-full bg-green-100 rounded-full h-4 mb-6 overflow-hidden relative">
+            <div className={`w-full rounded-full h-4 mb-6 overflow-hidden relative ${theme === 'dark' ? 'bg-gray-700' : 'bg-green-100'}`}>
               <motion.div
                 className="h-4 bg-green-500"
                 initial={{ width: "0%" }}
@@ -366,20 +401,21 @@ export default function TDSessionPage() {
                 }}
                 transition={{ duration: 0.5 }}
               />
-              <span className="absolute inset-0 flex justify-center items-center text-xs font-semibold text-green-800">
+              {/* 🔑 Progress Text Color */}
+              <span className={`absolute inset-0 flex justify-center items-center text-xs font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-green-800'}`}>
                 {currentQuestion + 1} / {questions.length}
               </span>
             </div>
 
-            <h1 className="text-2xl font-bold text-gray-800 mb-6">
+            <h1 className={`text-2xl font-bold mb-6 transition-colors ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>
               {session.title || "TD Session"}
             </h1>
 
             {current.source && (
-              <p className="text-sm text-gray-500 italic mb-2">📘 {current.source}</p>
+              <p className={`text-sm italic mb-2 transition-colors ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>📘 {current.source}</p>
             )}
 
-            <h2 className="text-xl font-semibold text-gray-700 mb-4">
+            <h2 className={`text-xl font-semibold mb-4 transition-colors ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
               {currentQuestion + 1}. {current.question_text}
             </h2>
 
@@ -405,10 +441,10 @@ export default function TDSessionPage() {
 
                     <button
                       onClick={() => toggleNotInterested(key)}
-                      className={`px-3 py-1 rounded-lg text-sm ${
+                      className={`px-3 py-1 rounded-lg text-sm transition-colors ${
                         isNotInterested
-                          ? "bg-red-200 text-red-700"
-                          : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                          ? "bg-red-500 text-white" // Keep red for interest toggle
+                          : (theme === 'dark' ? "bg-gray-600 text-gray-300 hover:bg-gray-500" : "bg-gray-200 text-gray-600 hover:bg-gray-300")
                       }`}
                     >
                       {isNotInterested ? "Undo" : "Not Interested"}
@@ -432,10 +468,11 @@ export default function TDSessionPage() {
 
             {/* ✅ Show correct answer + justification */}
             {showResponse && ((isMulti && selected && selected.length > 0) || (!isMulti && selected)) && (
-              <div className="mt-6 bg-green-50 p-4 rounded-xl border border-green-200 text-left">
-                <h3 className="text-gray-800 font-semibold mb-2">📘 Justification :</h3>
+              <div className={`mt-6 p-4 rounded-xl border text-left transition-colors ${theme === 'dark' ? 'bg-gray-900 border-emerald-900' : 'bg-green-50 border-green-200'}`}>
+                {/* 🔑 Justification Header */}
+                <h3 className={`font-semibold mb-2 transition-colors ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>📘 Justification :</h3>
                 {current.justification_text ? (
-                  <p className="text-gray-700">{current.justification_text}</p>
+                  <p className={`transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{current.justification_text}</p>
                 ) : (
                   <p className="text-gray-400 italic">Pas de justification fournie.</p>
                 )}
@@ -453,7 +490,12 @@ export default function TDSessionPage() {
                     value={noteInput}
                     onChange={(e) => setNoteInput(e.target.value)}
                     placeholder="📝 Écrire une note sur cette question..."
-                    className="w-full p-3 rounded-xl border border-gray-300"
+                    // 🔑 Textarea Styling
+                    className={`w-full p-3 rounded-xl border outline-none transition-colors ${
+                      theme === 'dark' 
+                      ? 'bg-gray-800 border-gray-600 text-gray-100 placeholder-gray-400'
+                      : 'border-gray-300'
+                    }`}
                   />
                   <button
                     onClick={handleSaveNote}
@@ -462,7 +504,7 @@ export default function TDSessionPage() {
                     💾 Sauvegarder Note
                   </button>
                   {notes[currentQuestion] && (
-                    <p className="text-sm text-gray-500 mt-2">Dernière note : {notes[currentQuestion]}</p>
+                    <p className={`text-sm mt-2 transition-colors ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Dernière note : {notes[currentQuestion]}</p>
                   )}
                 </div>
 
@@ -472,7 +514,12 @@ export default function TDSessionPage() {
                     value={reportMsg}
                     onChange={(e) => setReportMsg(e.target.value)}
                     placeholder="🚩 Signaler un problème..."
-                    className="w-full p-3 rounded-xl border border-red-300"
+                    // 🔑 Report Textarea Styling
+                    className={`w-full p-3 rounded-xl border transition-colors ${
+                      theme === 'dark' 
+                      ? 'bg-gray-800 border-red-700 text-gray-100 placeholder-gray-400'
+                      : 'border-red-300'
+                    }`}
                   />
                   <button
                     onClick={handleReport}
@@ -490,10 +537,11 @@ export default function TDSessionPage() {
                 whileTap={{ scale: 0.9 }}
                 onClick={handlePrevious}
                 disabled={currentQuestion === 0}
-                className={`px-6 py-2 rounded-xl font-semibold shadow ${
+                // 🔑 Previous Button Styling
+                className={`px-6 py-2 rounded-xl font-semibold shadow transition-colors ${
                   currentQuestion === 0
-                    ? "bg-gray-300 text-gray-600 cursor-not-allowed"
-                    : "bg-yellow-400 text-white hover:bg-yellow-500"
+                    ? (theme === 'dark' ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-gray-300 text-gray-600 cursor-not-allowed')
+                    : (theme === 'dark' ? 'bg-amber-600 text-white hover:bg-amber-500' : 'bg-yellow-400 text-white hover:bg-yellow-500')
                 }`}
               >
                 ⬅ Précédent
@@ -514,23 +562,26 @@ export default function TDSessionPage() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <h2 className="text-3xl font-bold text-gray-800 mb-4">🎉 TD Terminé !</h2>
+            {/* 🔑 Result Title */}
+            <h2 className={`text-3xl font-bold mb-4 transition-colors ${theme === 'dark' ? 'text-emerald-400' : 'text-gray-800'}`}>🎉 TD Terminé !</h2>
 
-            <p className="text-gray-700 text-xl mb-2">
+            {/* 🔑 Result Scores */}
+            <p className={`text-xl mb-2 transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
               🔹 Tout ou Rien:{" "}
-              <span className="font-bold text-green-600">{finalScoreNormal} / 20</span>
+              <span className="font-bold text-green-600 dark:text-green-400">{finalScoreNormal} / 20</span>
             </p>
 
-            <p className="text-gray-700 text-xl mb-2">
-              🔹 Partiel: <span className="font-bold text-blue-600">{finalScorePartiel} / 20</span>
+            <p className={`text-xl mb-2 transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+              🔹 Partiel: <span className="font-bold text-blue-600 dark:text-blue-400">{finalScorePartiel} / 20</span>
             </p>
 
-            <p className="text-gray-700 text-xl mb-6">
+            <p className={`text-xl mb-6 transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
               🔹 Partiel Négatif:{" "}
-              <span className="font-bold text-red-600">{finalScoreNegative} / 20</span>
+              <span className="font-bold text-red-600 dark:text-red-400">{finalScoreNegative} / 20</span>
             </p>
 
-            <div className="w-full bg-gray-200 rounded-full h-4 mb-6 overflow-hidden">
+            {/* Progress Bar in Results */}
+            <div className={`w-full rounded-full h-4 mb-6 overflow-hidden transition-colors ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
               <motion.div
                 className={`h-4 ${finalScoreNegative >= 10 ? "bg-green-500" : "bg-red-500"}`}
                 initial={{ width: "0%" }}
@@ -561,14 +612,14 @@ export default function TDSessionPage() {
 
       {/* Search results */}
       {searchTerm && (
-        <div className="w-full max-w-3xl mt-8 bg-white p-4 rounded-xl shadow border">
-          <h3 className="font-bold text-lg mb-3">Résultats :</h3>
+        <div className={`w-full max-w-3xl mt-8 p-4 rounded-xl shadow border transition-colors ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <h3 className={`font-bold text-lg mb-3 transition-colors ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>Résultats :</h3>
           {filteredQuestions.length > 0 ? (
             <ul className="list-disc pl-6 text-left space-y-2">
               {filteredQuestions.map((q, i) => (
                 <li
                   key={i}
-                  className="cursor-pointer hover:text-green-600"
+                  className={`cursor-pointer transition-colors ${theme === 'dark' ? 'text-gray-300 hover:text-emerald-400' : 'text-gray-700 hover:text-green-600'}`}
                   onClick={() => {
                     setCurrentQuestion(i);
                     setSelected(null);

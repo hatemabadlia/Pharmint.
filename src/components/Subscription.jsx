@@ -2,8 +2,12 @@
 import { useState, useEffect } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase/config";
+import { useTheme } from "../context/ThemeContext"; // 🔑 Import useTheme
 
 export default function Subscription() {
+  // 🔑 Get theme state
+  const { theme } = useTheme(); 
+
   const [userData, setUserData] = useState(null);
   const [endDate, setEndDate] = useState(null);
 
@@ -31,24 +35,37 @@ export default function Subscription() {
     fetchUser();
   }, [uid]);
 
+  // 🔑 Loading state based on theme
   if (!userData)
-    return <p className="text-center mt-10 text-gray-500">Chargement des informations...</p>;
+    return <p className={`text-center mt-10 transition-colors ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Chargement des informations...</p>;
 
   return (
-    <div className="flex justify-center mt-16">
-      <div className="bg-white shadow-lg rounded-xl w-full max-w-md p-6 text-center">
-        <h2 className="text-2xl font-bold text-green-700 mb-4">Informations sur l'abonnement</h2>
+    // Outer container - padding added
+    <div className="flex justify-center mt-16 p-4">
+      {/* 🔑 Subscription Card Styling */}
+      <div className={`shadow-lg rounded-xl w-full max-w-md p-6 text-center transition-colors duration-300 ${
+          theme === 'dark'
+          ? 'bg-gray-800 shadow-emerald-900/30 ring-1 ring-gray-700' // Dark card
+          : 'bg-white' // Light card
+      }`}>
+        {/* 🔑 Heading Text Color */}
+        <h2 className={`text-2xl font-bold mb-4 transition-colors ${theme === 'dark' ? 'text-emerald-400' : 'text-green-700'}`}>
+            Informations sur l'abonnement
+        </h2>
 
-        <p className="text-gray-700 mb-2">
+        {/* 🔑 Text Color */}
+        <p className={`mb-2 transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
           Date d'inscription : {userData.createdAt?.toDate().toLocaleDateString("fr-FR")}
         </p>
 
-        <p className="text-gray-700 mb-4">
+        {/* 🔑 Text Color */}
+        <p className={`mb-4 transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
           Votre abonnement prendra fin le :{" "}
-          <span className="font-semibold">{endDate?.toLocaleDateString("fr-FR")}</span>
+          <span className={`font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{endDate?.toLocaleDateString("fr-FR") ?? 'N/A'}</span>
         </p>
 
-        <p className="text-green-600 font-medium">
+        {/* 🔑 Text Color (Success message) */}
+        <p className={`font-medium transition-colors ${theme === 'dark' ? 'text-emerald-400' : 'text-green-600'}`}>
           Merci pour votre confiance ! Profitez pleinement de nos services.
         </p>
       </div>

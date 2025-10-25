@@ -1,13 +1,16 @@
 /* WaveBackground.css */
 
-/* Base wave background gradient */
+/* Base wave background gradient (Light Mode) */
 .wave-bg {
   position: fixed;
   inset: 0;
+  /* Original light green gradient */
   background: linear-gradient(180deg, #e6fff3 0%, #bff6d8 50%, rgb(118, 255, 83) 100%);
   overflow: hidden;
   z-index: 0;
   pointer-events: none;
+  /* Added transition for smooth theme change */
+  transition: background 0.5s ease-in-out;
 }
 
 /* Common styles for all waves */
@@ -17,6 +20,7 @@
   bottom: -12%;
   width: 220%;
   height: 35%;
+  /* Original light radial gradient */
   background: radial-gradient(
     closest-side at 50% 50%, 
     rgba(255, 255, 255, 0.45), 
@@ -28,6 +32,8 @@
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
   animation-name: waveMove;
+  /* Added transition for smooth theme change */
+  transition: background 0.5s ease-in-out;
 }
 
 /* Wave 1: base wave */
@@ -69,8 +75,29 @@
   }
 }
 
-/* Content container to be above waves */
+/* --- 🔑 DARK MODE OVERRIDES --- 
+  Applied when the 'dark-waves' class is present on the .wave-bg container
+*/
+
+/* 1. Dark Mode: Main Background */
+.dark-waves.wave-bg {
+  /* Dark emerald/green gradient */
+  background: linear-gradient(180deg, #064e3b 0%, #052e16 50%, #042f2e 100%);
+}
+
+/* 2. Dark Mode: Wave Colors */
+.dark-waves .wave {
+  /* Dark, subtle radial gradient instead of white */
+  background: radial-gradient(
+    closest-side at 50% 50%, 
+    rgba(0, 0, 0, 0.25),  /* Was white (255,255,255,0.45) */
+    rgba(0, 0, 0, 0.05)   /* Was red (175,64,64,0.06) */
+  );
+}
+
+/* Content container to be above waves (from original file) */
 .content-above-waves {
   position: relative;
   z-index: 10;
 }
+

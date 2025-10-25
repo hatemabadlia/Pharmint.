@@ -3,8 +3,12 @@ import React, { useState, useEffect } from "react";
 import { db, auth } from "../firebase/config";
 import { collection, getDocs, doc, getDoc, addDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "../context/ThemeContext"; // 🔑 Import useTheme
 
 export default function CreateTDSession() {
+  // 🔑 Get theme state
+  const { theme } = useTheme();
+
   const [modules, setModules] = useState([]);
   const [selectedModule, setSelectedModule] = useState("");
   const [availableTDs, setAvailableTDs] = useState([]);
@@ -135,7 +139,7 @@ export default function CreateTDSession() {
     setSelectedTDs(selectedTDs.filter((c) => c.id !== td.id));
   };
 
-  // 🔹 Save TD Session
+  // 🔹 Save TD Session (Original logic maintained)
   const handleSaveSession = async () => {
     try {
       const userId = auth.currentUser?.uid;
@@ -173,7 +177,8 @@ export default function CreateTDSession() {
 
       {/* Session Title */}
       <div className="mb-6">
-        <label className="block text-gray-700 font-semibold mb-2">
+        {/* 🔑 Label Text Color */}
+        <label className={`block font-semibold mb-2 transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
           📝 Titre de la Session TD
         </label>
         <input
@@ -181,19 +186,30 @@ export default function CreateTDSession() {
           value={sessionTitle}
           onChange={(e) => setSessionTitle(e.target.value)}
           placeholder="Ex: TD Bactériologie n°2"
-          className="w-full border p-3 rounded-lg shadow-sm"
+          // 🔑 Input Styling
+          className={`w-full border p-3 rounded-lg shadow-sm outline-none transition-colors duration-300 ${
+            theme === 'dark'
+            ? 'bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-400 focus:ring-emerald-500'
+            : 'border-gray-300 focus:ring-2 focus:ring-green-500'
+          }`}
         />
       </div>
 
       {/* Select Module */}
       <div className="mb-8">
-        <label className="block text-gray-700 font-semibold mb-2">
+        {/* 🔑 Label Text Color */}
+        <label className={`block font-semibold mb-2 transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
           📘 Choisir un Module
         </label>
         <select
           value={selectedModule}
           onChange={(e) => setSelectedModule(e.target.value)}
-          className="w-full border p-3 rounded-lg shadow-sm"
+          // 🔑 Select Styling
+          className={`w-full border p-3 rounded-lg shadow-sm outline-none transition-colors duration-300 ${
+            theme === 'dark'
+            ? 'bg-gray-800 border-gray-700 text-gray-100'
+            : 'border-gray-300'
+          }`}
         >
           <option value="">-- Sélectionnez un module --</option>
           {modules.map((mod) => (
@@ -208,10 +224,12 @@ export default function CreateTDSession() {
       <div className="grid grid-cols-2 gap-8 mb-10">
         {/* Available TDs */}
         <div>
-          <h2 className="font-semibold mb-3 text-gray-700">📂 Liste des TD</h2>
-          <div className="border rounded-xl h-72 overflow-y-auto p-3 shadow-sm">
+          {/* 🔑 Header Text Color */}
+          <h2 className={`font-semibold mb-3 transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>📂 Liste des TD</h2>
+          {/* 🔑 List Container Styling */}
+          <div className={`border rounded-xl h-72 overflow-y-auto p-3 shadow-sm transition-colors ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-white'}`}>
             {loading ? (
-              <p>Chargement...</p>
+              <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-700'}>Chargement...</p>
             ) : availableTDs.length === 0 ? (
               <p className="text-gray-400 text-sm text-center mt-10">
                 Aucun TD disponible
@@ -220,7 +238,12 @@ export default function CreateTDSession() {
               availableTDs.map((td) => (
                 <div
                   key={td.id}
-                  className="p-3 bg-gray-50 rounded-lg mb-2 cursor-pointer hover:bg-green-100 hover:shadow transition"
+                  // 🔑 TD Item Styling (Available)
+                  className={`p-3 rounded-lg mb-2 cursor-pointer transition-colors ${
+                    theme === 'dark'
+                    ? 'bg-gray-700 hover:bg-gray-600 text-gray-100 shadow'
+                    : 'bg-gray-50 hover:bg-green-100 hover:shadow text-gray-900'
+                  }`}
                   onClick={() => handleAddTD(td)}
                 >
                   ➕ {td.name || formatId(td.id)} ({td.questionCount || 0} qst)
@@ -232,8 +255,10 @@ export default function CreateTDSession() {
 
         {/* Selected TDs */}
         <div>
-          <h2 className="font-semibold mb-3 text-gray-700">✅ TD Sélectionnés</h2>
-          <div className="border rounded-xl h-72 overflow-y-auto p-3 shadow-sm">
+          {/* 🔑 Header Text Color */}
+          <h2 className={`font-semibold mb-3 transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>✅ TD Sélectionnés</h2>
+          {/* 🔑 List Container Styling */}
+          <div className={`border rounded-xl h-72 overflow-y-auto p-3 shadow-sm transition-colors ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-white'}`}>
             {selectedTDs.length === 0 ? (
               <p className="text-gray-400 text-sm text-center mt-10">
                 Aucun TD sélectionné
@@ -242,7 +267,12 @@ export default function CreateTDSession() {
               selectedTDs.map((td) => (
                 <div
                   key={td.id}
-                  className="p-3 bg-green-200 rounded-lg mb-2 cursor-pointer hover:bg-red-200 hover:shadow transition"
+                  // 🔑 TD Item Styling (Selected)
+                  className={`p-3 rounded-lg mb-2 cursor-pointer transition-colors ${
+                    theme === 'dark'
+                    ? 'bg-emerald-900/70 hover:bg-red-800 text-white shadow'
+                    : 'bg-green-200 hover:bg-red-200 hover:shadow text-gray-900'
+                  }`}
                   onClick={() => handleRemoveTD(td)}
                 >
                   ❌ {td.name || formatId(td.id)} ({td.questionCount || 0} qst)
@@ -256,7 +286,8 @@ export default function CreateTDSession() {
       {/* Options */}
       <div className="flex flex-wrap gap-10 items-center mb-8">
         <div className="w-full md:w-1/2">
-          <label className="block text-gray-700 font-semibold mb-2">
+          {/* 🔑 Label Text Color */}
+          <label className={`block font-semibold mb-2 transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
             🎯 Nombre de Questions (max {maxTDs})
           </label>
           <input
@@ -268,21 +299,27 @@ export default function CreateTDSession() {
             className="w-full accent-green-600"
           />
           <div className="flex justify-between text-sm mt-2">
-            <span>0</span>
-            <span className="font-semibold text-green-700">
+            <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-700'}>0</span>
+            <span className={`font-semibold transition-colors ${theme === 'dark' ? 'text-emerald-400' : 'text-green-700'}`}>
               {tdCount} / {maxTDs}
             </span>
           </div>
         </div>
 
         <div>
-          <label className="block text-gray-700 font-semibold mb-2">
+          {/* 🔑 Label Text Color */}
+          <label className={`block font-semibold mb-2 transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
             🔀 Ordre
           </label>
           <select
             value={order}
             onChange={(e) => setOrder(e.target.value)}
-            className="border p-3 rounded-lg shadow-sm"
+            // 🔑 Select Styling
+            className={`border p-3 rounded-lg shadow-sm outline-none transition-colors duration-300 ${
+              theme === 'dark'
+              ? 'bg-gray-800 border-gray-700 text-gray-100'
+              : 'border-gray-300'
+            }`}
           >
             <option value="annee">Par année d'examen</option>
             <option value="aleatoire">Aléatoire</option>

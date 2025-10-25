@@ -1,1 +1,6 @@
 @import "tailwindcss";
+.dark {
+  /* Set a dark background for the whole page */
+  background-color: #121212; /* A good, deep dark gray */
+  color: #EAEAEA;            /* Light text color */
+}

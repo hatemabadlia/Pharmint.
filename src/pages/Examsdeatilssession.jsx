@@ -5,8 +5,12 @@ import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Howl } from "howler";
+import { useTheme } from "../context/ThemeContext"; // 🔑 Import useTheme
 
 export default function ExamDetailPage() {
+  // 🔑 Get theme state
+  const { theme } = useTheme();
+
   const { id } = useParams();
   const userId = auth.currentUser?.uid;
 
@@ -110,9 +114,10 @@ export default function ExamDetailPage() {
     return `${m}:${s}`;
   };
 
-  if (loading) return <p className="text-center mt-10">Chargement...</p>;
-  if (!session)
-    return <p className="text-center mt-10">Session introuvable ❌</p>;
+  // 🔑 Loading state color
+  if (loading) return <p className={`text-center mt-10 transition-colors ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Chargement...</p>;
+  if (!session) return <p className={`text-center mt-10 transition-colors ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>Session introuvable ❌</p>;
+
 
   const questions = session?.questions || [];
   const current = questions[currentQuestion];
@@ -273,21 +278,53 @@ export default function ExamDetailPage() {
 
   const finalScores = computeScores();
 
+  // 💡 --- UI HELPER FUNCTIONS ---
+  const getOptionButtonClass = (key) => {
+    const selected = selectedAnswers[currentQuestion] || [];
+    const isSelected = selected.includes(key);
+    const isNotInterested = notInterested[currentQuestion]?.[key];
+
+    // Options button style
+    if (isSelected) {
+      return theme === 'dark' 
+        ? "bg-blue-700 text-white border-2 border-blue-500" 
+        : "bg-blue-200 text-blue-800 border-2 border-blue-300";
+    }
+
+    if (isNotInterested) {
+      return theme === 'dark' 
+        ? "bg-gray-700 text-gray-500 opacity-50" 
+        : "bg-gray-100 text-gray-400 opacity-50";
+    }
+
+    return theme === 'dark' 
+      ? "bg-gray-700 hover:bg-gray-600 text-gray-200" 
+      : "bg-green-50 hover:bg-green-100 text-gray-700";
+  };
+  // -----------------------------
+
   return (
     <div
       className="flex flex-col items-center min-h-screen p-6"
+      // 🔑 Conditional background style
       style={{
-        background: "linear-gradient(180deg, #ffffff 0%, #d4f8d4 100%)",
+        background: theme === 'dark' ? 'none' : 'linear-gradient(180deg, #ffffff 0%, #d4f8d4 100%)', 
       }}
     >
       {!finished && (
         <div className="mb-6 flex items-center gap-4">
-          <div className="text-2xl font-bold text-green-700">
+          {/* 🔑 Timer Text Color */}
+          <div className={`text-2xl font-bold transition-colors ${theme === 'dark' ? 'text-red-400' : 'text-green-700'}`}>
             ⏰ {formatTime(timeLeft)}
           </div>
           <button
             onClick={() => setIsPaused(!isPaused)}
-            className="px-4 py-2 bg-yellow-400 text-white rounded-lg shadow hover:bg-yellow-500"
+            // 🔑 Pause Button Styling
+            className={`px-4 py-2 rounded-lg shadow transition-colors ${
+              theme === 'dark' 
+              ? 'bg-yellow-600 text-white hover:bg-yellow-500' 
+              : 'bg-yellow-400 text-white hover:bg-yellow-500'
+            }`}
           >
             {isPaused ? "▶️ Reprendre" : "⏸ Pause"}
           </button>
@@ -301,12 +338,22 @@ export default function ExamDetailPage() {
           placeholder="🔍 Rechercher une question..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full p-3 rounded-xl border border-green-300 shadow"
+          // 🔑 Input Styling
+          className={`w-full p-3 rounded-xl border shadow outline-none transition-colors duration-300 ${
+            theme === 'dark'
+            ? 'bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-400 focus:ring-emerald-500'
+            : 'border-green-300 shadow'
+          }`}
         />
       </div>
 
       <motion.div
-        className="w-full max-w-3xl bg-white rounded-2xl shadow-xl p-8 text-center border border-green-200"
+        // 🔑 Quiz Card Styling
+        className={`w-full max-w-3xl rounded-2xl shadow-xl p-8 text-center border transition-colors duration-300 ${
+            theme === 'dark'
+            ? 'bg-gray-800 border-gray-700 shadow-emerald-900/50'
+            : 'bg-white border-green-200'
+        }`}
         initial={{ opacity: 0, scale: 0.9, y: 50 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.6 }}
@@ -314,7 +361,7 @@ export default function ExamDetailPage() {
         {!finished ? (
           <>
             {/* Progress Bar */}
-            <div className="w-full bg-green-100 rounded-full h-3 mb-6 overflow-hidden">
+            <div className={`w-full rounded-full h-3 mb-6 overflow-hidden transition-colors ${theme === 'dark' ? 'bg-gray-700' : 'bg-green-100'}`}>
               <motion.div
                 className="h-3 bg-green-500"
                 initial={{ width: "0%" }}
@@ -325,17 +372,17 @@ export default function ExamDetailPage() {
               />
             </div>
 
-            <h1 className="text-2xl font-bold text-gray-800 mb-6">
+            <h1 className={`text-2xl font-bold mb-6 transition-colors ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>
               {session.title || "Session sans titre"}
             </h1>
 
             {current.source && (
-              <p className="text-sm text-gray-500 italic mb-2">
+              <p className={`text-sm italic mb-2 transition-colors ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                 📌 {current.source}
               </p>
             )}
 
-            <h2 className="text-xl font-semibold text-gray-700 mb-4">
+            <h2 className={`text-xl font-semibold mb-4 transition-colors ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
               {currentQuestion + 1}. {current.question_text}
             </h2>
 
@@ -344,20 +391,12 @@ export default function ExamDetailPage() {
               {["A", "B", "C", "D", "E"].map((key) => {
                 const val = current.options?.[key];
                 if (!val) return null;
-                const isNotInterested = notInterested[currentQuestion]?.[key];
-                const selected = selectedAnswers[currentQuestion] || [];
-                const isSelected = selected.includes(key);
+                
                 return (
                   <motion.div key={key} className="flex items-center gap-2">
                     <motion.button
                       whileTap={{ scale: 0.95 }}
-                      className={`flex-1 py-3 px-5 rounded-xl text-lg font-semibold transition-all duration-300 shadow ${
-                        isSelected
-                          ? "bg-blue-200 text-blue-800"
-                          : isNotInterested
-                          ? "bg-gray-100 text-gray-400 opacity-50"
-                          : "bg-green-50 hover:bg-green-100 text-gray-700"
-                      }`}
+                      className={`flex-1 py-3 px-5 rounded-xl text-lg font-semibold transition-all duration-300 shadow ${getOptionButtonClass(key)}`}
                       onClick={() => handleAnswer(key)}
                     >
                       {key}. {val}
@@ -365,13 +404,13 @@ export default function ExamDetailPage() {
 
                     <button
                       onClick={() => toggleNotInterested(key)}
-                      className={`px-3 py-1 rounded-lg text-sm ${
-                        isNotInterested
-                          ? "bg-red-200 text-red-700"
-                          : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                      className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+                        notInterested[currentQuestion]?.[key]
+                          ? "bg-red-500 text-white" 
+                          : (theme === 'dark' ? "bg-gray-600 text-gray-300 hover:bg-gray-500" : "bg-gray-200 text-gray-600 hover:bg-gray-300")
                       }`}
                     >
-                      {isNotInterested ? "Undo" : "Not Interested"}
+                      {notInterested[currentQuestion]?.[key] ? "Undo" : "Not Interested"}
                     </button>
                   </motion.div>
                 );
@@ -384,10 +423,10 @@ export default function ExamDetailPage() {
                 whileTap={{ scale: 0.9 }}
                 onClick={handlePrev}
                 disabled={currentQuestion === 0}
-                className={`px-6 py-2 rounded-xl text-white font-semibold shadow ${
+                className={`px-6 py-2 rounded-xl text-white font-semibold shadow transition-colors ${
                   currentQuestion === 0
-                    ? "bg-gray-300 cursor-not-allowed"
-                    : "bg-green-500 hover:bg-green-600"
+                    ? (theme === 'dark' ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-300 cursor-not-allowed')
+                    : (theme === 'dark' ? 'bg-green-600 hover:bg-green-500' : 'bg-green-500 hover:bg-green-600')
                 }`}
               >
                 ⬅ Précédent
@@ -404,7 +443,7 @@ export default function ExamDetailPage() {
               </motion.button>
             </div>
 
-            <p className="text-gray-600 mt-6">
+            <p className={`mt-6 transition-colors ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
               Question {currentQuestion + 1} / {questions.length}
             </p>
           </>
@@ -415,40 +454,44 @@ export default function ExamDetailPage() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <h2 className="text-3xl font-bold text-gray-800 mb-4">
+            {/* 🔑 Result Title */}
+            <h2 className={`text-3xl font-bold mb-4 transition-colors ${theme === 'dark' ? 'text-emerald-400' : 'text-gray-800'}`}>
               🎉 Session terminée !
             </h2>
 
-            <p className="text-gray-700 text-xl mb-2">
+            {/* 🔑 Result Scores */}
+            <p className={`text-xl mb-2 transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
               🟢 Tout ou Rien:{" "}
-              <span className="font-bold text-green-600">
+              <span className="font-bold text-green-600 dark:text-green-400">
                 {finalScores.toutRien} / 20
               </span>
             </p>
-            <p className="text-gray-700 text-xl mb-2">
+
+            <p className={`text-xl mb-2 transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
               🟡 Partiel:{" "}
-              <span className="font-bold text-yellow-600">
+              <span className="font-bold text-yellow-600 dark:text-yellow-400">
                 {finalScores.partiel} / 20
               </span>
             </p>
-            <p className="text-gray-700 text-xl mb-6">
+
+            <p className={`text-xl mb-6 transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
               🔴 Partiel Négatif:{" "}
-              <span className="font-bold text-red-600">
+              <span className="font-bold text-red-600 dark:text-red-400">
                 {finalScores.negatif} / 20
               </span>
             </p>
 
             {/* ✅ Show Correct Answers Review */}
-            <div className="text-left mt-6 space-y-4">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+            <div className={`text-left mt-6 space-y-4 p-4 rounded-xl border transition-colors ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+              <h3 className={`text-lg font-semibold mb-3 transition-colors ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>
                 📋 Correction des réponses :
               </h3>
               {questions.map((q, i) => (
                 <div
                   key={i}
-                  className="p-3 rounded-lg border border-gray-200 bg-gray-50"
+                  className={`p-3 rounded-lg border transition-colors ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}
                 >
-                  <p className="font-semibold mb-2">
+                  <p className={`font-semibold mb-2 transition-colors ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>
                     {i + 1}. {q.question_text}
                   </p>
                   {["A", "B", "C", "D", "E"].map((key) => {
@@ -461,16 +504,14 @@ export default function ExamDetailPage() {
                     const selected = selectedAnswers[i] || [];
                     const isSelected = selected.includes(key);
 
+                    let textColor = theme === 'dark' ? 'text-gray-400' : 'text-gray-600';
+                    if (isCorrect) textColor = 'text-green-600 dark:text-green-400 font-semibold';
+                    else if (isSelected) textColor = 'text-red-500 dark:text-red-400';
+                    
                     return (
                       <p
                         key={key}
-                        className={`ml-4 ${
-                          isCorrect
-                            ? "text-green-600 font-semibold"
-                            : isSelected
-                            ? "text-red-500"
-                            : "text-gray-600"
-                        }`}
+                        className={`ml-4 ${textColor}`}
                       >
                         {key}. {val}
                       </p>
@@ -497,14 +538,14 @@ export default function ExamDetailPage() {
 
       {/* 🔍 Search results */}
       {searchTerm && (
-        <div className="w-full max-w-3xl mt-8 bg-white p-4 rounded-xl shadow border">
-          <h3 className="font-bold text-lg mb-3">Résultats :</h3>
+        <div className={`w-full max-w-3xl mt-8 p-4 rounded-xl shadow border transition-colors ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <h3 className={`font-bold text-lg mb-3 transition-colors ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>Résultats :</h3>
           {filteredQuestions.length > 0 ? (
             <ul className="list-disc pl-6 text-left space-y-2">
               {filteredQuestions.map((q, i) => (
                 <li
                   key={i}
-                  className="cursor-pointer hover:text-green-600"
+                  className={`cursor-pointer transition-colors ${theme === 'dark' ? 'text-gray-300 hover:text-emerald-400' : 'text-gray-700 hover:text-green-600'}`}
                   onClick={() => {
                     setCurrentQuestion(i);
                     setNoteInput(notes[i] || "");
