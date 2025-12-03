@@ -3,12 +3,11 @@ import React, { useEffect, useState } from "react";
 import { db, auth } from "../firebase/config";
 import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { useParams } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion"; // 🔑 Import AnimatePresence
+import { motion, AnimatePresence } from "framer-motion";
 import { Howl } from "howler";
-import { useTheme } from "../context/ThemeContext"; // 🔑 Import useTheme
-import { XCircle, AlertTriangle } from "lucide-react"; // 🔑 Import icons
+import { useTheme } from "../context/ThemeContext";
+import { XCircle, AlertTriangle } from "lucide-react";
 
-// 💡 Custom Error/Message Box Component (replaces alert())
 const ErrorMessage = ({ message, onClose, theme }) => (
   <motion.div
     initial={{ opacity: 0, y: -20 }}
@@ -25,37 +24,32 @@ const ErrorMessage = ({ message, onClose, theme }) => (
   </motion.div>
 );
 
-
 export default function SessionDetailPage() {
-  // 🔑 Get theme state
   const { theme } = useTheme();
-
   const { id } = useParams();
   const userId = auth.currentUser?.uid;
 
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState([]); // 🔄 Changed to array for multi-select
   const [scoreNegative, setScoreNegative] = useState(0);
   const [scoreNormal, setScoreNormal] = useState(0);
   const [scorePartiel, setScorePartiel] = useState(0);
   const [finished, setFinished] = useState(false);
   const [showResponse, setShowResponse] = useState(false);
-
   const [notes, setNotes] = useState({});
   const [noteInput, setNoteInput] = useState("");
   const [reportMsg, setReportMsg] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [notInterested, setNotInterested] = useState({});
-  const [errorMessage, setErrorMessage] = useState(null); // 🔑 Error state
+  const [errorMessage, setErrorMessage] = useState(null);
 
   const closeError = () => setErrorMessage(null);
   const displayError = (message) => {
     setErrorMessage(message);
-    setTimeout(closeError, 5000); 
+    setTimeout(closeError, 5000);
   };
-
 
   const playSound = (type) => {
     const sound = new Howl({
@@ -68,93 +62,102 @@ export default function SessionDetailPage() {
     sound.play();
   };
 
-  useEffect(() => {
-    if (!userId || !id) return;
+  // In SessionDetailPage.jsx - REPLACE the fetchSession useEffect with this:
 
-    const fetchSession = async () => {
-      try {
-        const ref = doc(db, "users", userId, "sessions", id);
-        const snap = await getDoc(ref);
+useEffect(() => {
+  if (!userId || !id) return;
 
-        if (snap.exists()) {
-          const data = snap.data();
-          let questions = [];
+  const fetchSession = async () => {
+    try {
+      const ref = doc(db, "users", userId, "sessions", id);
+      const snap = await getDoc(ref);
 
-          if (data.courses && Array.isArray(data.courses) && data.courses[0]?.questions) {
-            questions = data.courses[0].questions;
-          }
-
-          setSession({ ...data, questions });
-
-          if (data.notes) {
-            const map = {};
-            data.notes.forEach((n) => {
-              map[n.questionId] = n.note;
-            });
-            setNotes(map);
-          }
+      if (snap.exists()) {
+        const data = snap.data();
+        
+        // ✅ FIXED: Use the SAVED questions directly
+        let questions = data.questions || [];
+        
+        // Fallback for old sessions
+        if (!questions.length && data.courses?.[0]?.questions) {
+          questions = data.courses[0].questions;
         }
-      } catch (err) {
-        console.error("Erreur:", err);
-      } finally {
-        setLoading(false);
+
+        setSession({ ...data, questions });
+        
+        if (data.notes) {
+          const map = {};
+          data.notes.forEach((n) => {
+            map[n.questionId] = n.note;
+          });
+          setNotes(map);
+        }
       }
-    };
+    } catch (err) {
+      console.error("Erreur:", err);
+      displayError("Erreur lors du chargement de la session.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchSession();
-  }, [userId, id]);
+  fetchSession();
+}, [userId, id]);
 
-  // 🔑 Loading text color
+
   if (loading) return <p className={`text-center mt-10 transition-colors ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Chargement...</p>;
   if (!session) return <p className={`text-center mt-10 transition-colors ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>Session introuvable ❌</p>;
 
   const questions = session?.questions || [];
   const current = questions[currentQuestion];
 
-  // ✅ Allow change before showing response
+  // 🔧 Multi-select handlers
   const handleAnswer = (optionKey) => {
-    if (showResponse) return; // locked after showing
-    setSelected(optionKey);
+    if (showResponse) return;
+    
+    setSelected((prev) => {
+      if (prev.includes(optionKey)) {
+        // Deselect
+        return prev.filter((key) => key !== optionKey);
+      } else {
+        // Select
+        return [...prev, optionKey];
+      }
+    });
   };
 
+  // 🔧 Check if it's multi-select question
+  const isMultiSelect = Array.isArray(current?.correct_answer);
+  const correctAnswers = Array.isArray(current?.correct_answer) ? current.correct_answer : [current.correct_answer];
+
   const handleShowResponse = () => {
-    if (!selected || showResponse) return;
+    if (selected.length === 0 || showResponse) return;
     setShowResponse(true);
 
-    // **Scoring System**
     let newScoreNormal = scoreNormal;
     let newScorePartiel = scorePartiel;
     let newScoreNegative = scoreNegative;
 
-    // Tout ou Rien (Normal)
-    if (selected === current.correct_answer) {
+    // 🔧 Tout ou Rien (Normal) - All correct or nothing
+    const allCorrect = selected.length === correctAnswers.length && 
+                      selected.every((opt) => correctAnswers.includes(opt));
+    if (allCorrect) {
       newScoreNormal += 1;
       playSound("correct");
     } else {
       playSound("wrong");
     }
 
-    // Partiel (if question has multiple correct options)
-    if (current.correct_options && Array.isArray(current.correct_options)) {
-      // selected could be an array if multi-choice
-      const userSelection = Array.isArray(selected) ? selected : [selected];
-      const correctSelection = current.correct_options;
-      const numCorrect = userSelection.filter((opt) => correctSelection.includes(opt)).length;
-      const partialScore = numCorrect / correctSelection.length;
-      newScorePartiel += partialScore;
+    // 🔧 Partiel scoring
+    const numCorrect = selected.filter((opt) => correctAnswers.includes(opt)).length;
+    const totalCorrect = correctAnswers.length;
+    const partialScore = numCorrect / totalCorrect;
+    newScorePartiel += partialScore;
 
-      // Partiel négatif
-      const numWrong = userSelection.filter((opt) => !correctSelection.includes(opt)).length;
-      newScoreNegative += partialScore - 0.25 * numWrong;
-    } else {
-      // Tout ou Rien only (for Partiel and Negative scores)
-      if (selected === current.correct_answer) {
-          newScorePartiel += 1;
-      } else {
-          newScoreNegative -= 0.25;
-      }
-    }
-    
+    // 🔧 Negative scoring
+    const numWrong = selected.filter((opt) => !correctAnswers.includes(opt)).length;
+    newScoreNegative += partialScore - 0.25 * numWrong;
+
     setScoreNormal(newScoreNormal);
     setScorePartiel(newScorePartiel);
     setScoreNegative(newScoreNegative);
@@ -163,7 +166,7 @@ export default function SessionDetailPage() {
   const handleNext = async () => {
     if (currentQuestion + 1 < questions.length) {
       setCurrentQuestion((q) => q + 1);
-      setSelected(null);
+      setSelected([]);
       setNoteInput(notes[currentQuestion + 1] || "");
       setReportMsg("");
       setShowResponse(false);
@@ -178,7 +181,7 @@ export default function SessionDetailPage() {
         });
       } catch (err) {
         console.error("Erreur update finish:", err);
-        displayError("Erreur lors de l'enregistrement du score final."); // ❌ Replaced alert
+        displayError("Erreur lors de l'enregistrement du score final.");
       }
     }
   };
@@ -186,7 +189,7 @@ export default function SessionDetailPage() {
   const handlePrevious = () => {
     if (currentQuestion > 0) {
       setCurrentQuestion((q) => q - 1);
-      setSelected(null);
+      setSelected([]);
       setNoteInput(notes[currentQuestion - 1] || "");
       setReportMsg("");
       setShowResponse(false);
@@ -194,7 +197,7 @@ export default function SessionDetailPage() {
   };
 
   const handleSaveNote = async () => {
-    if (!noteInput.trim()) return displayError("Écrivez une note."); // ❌ Replaced alert()
+    if (!noteInput.trim()) return displayError("Écrivez une note.");
     try {
       const ref = doc(db, "users", userId, "sessions", id);
       await updateDoc(ref, {
@@ -212,7 +215,7 @@ export default function SessionDetailPage() {
         [currentQuestion]: noteInput,
       }));
 
-      displayError("✅ Note enregistrée !"); // ❌ Replaced alert()
+      displayError("✅ Note enregistrée !");
     } catch (err) {
       console.error("Erreur note:", err);
       displayError("Erreur lors de l'enregistrement de la note.");
@@ -220,7 +223,7 @@ export default function SessionDetailPage() {
   };
 
   const handleReport = async () => {
-    if (!reportMsg.trim()) return displayError("Écrivez un message pour le rapport."); // ❌ Replaced alert()
+    if (!reportMsg.trim()) return displayError("Écrivez un message pour le rapport.");
     try {
       const ref = doc(db, "users", userId, "sessions", id);
       await updateDoc(ref, {
@@ -232,7 +235,7 @@ export default function SessionDetailPage() {
           timestamp: new Date().toISOString(),
         }),
       });
-      displayError("✅ Rapport envoyé !"); // ❌ Replaced alert()
+      displayError("✅ Rapport envoyé !");
       setReportMsg("");
     } catch (err) {
       console.error("Erreur rapport:", err);
@@ -260,15 +263,43 @@ export default function SessionDetailPage() {
       q.year?.toString().includes(searchTerm)
   );
 
+  const getButtonClass = (key) => {
+    if (showResponse) {
+      if (correctAnswers.includes(key)) {
+        return "bg-green-500 text-white shadow-lg border-2 border-green-400";
+      }
+      if (selected.includes(key) && !correctAnswers.includes(key)) {
+        return "bg-red-500 text-white shadow-lg border-2 border-red-400";
+      }
+      return theme === 'dark' ? "bg-gray-600 text-gray-200" : "bg-gray-200 text-gray-600";
+    }
+
+    const isSelected = selected.includes(key);
+    const isNotInterested = notInterested[currentQuestion]?.[key];
+
+    if (isNotInterested) {
+      return theme === 'dark' 
+        ? "bg-gray-700 text-gray-500 opacity-50" 
+        : "bg-gray-100 text-gray-400 opacity-50";
+    }
+
+    if (isSelected) {
+      return theme === 'dark'
+        ? "bg-emerald-600 border-2 border-emerald-500 text-gray-50 shadow-md"
+        : "bg-emerald-400 border-2 border-emerald-500 text-gray-900 shadow-md";
+    }
+
+    return theme === 'dark' 
+      ? "bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors" 
+      : "bg-green-50 hover:bg-green-100 text-gray-700 transition-colors";
+  };
+
   return (
-    // 🔑 Main background color removed (handled by Home.jsx)
     <div className="flex flex-col items-center min-h-screen p-6">
-      
-      {/* 🔑 Error Message Display */}
       <AnimatePresence>
         {errorMessage && <ErrorMessage message={errorMessage} onClose={closeError} theme={theme} />}
       </AnimatePresence>
-      
+
       {/* 🔍 Search bar */}
       <div className="w-full max-w-3xl mb-6">
         <input
@@ -276,19 +307,17 @@ export default function SessionDetailPage() {
           placeholder="🔍 Rechercher une question..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          // 🔑 Input Styling
           className={`w-full p-3 rounded-xl border shadow outline-none transition-colors duration-300 ${
             theme === 'dark'
-            ? 'bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-400 focus:ring-emerald-500'
-            : 'border-green-300 shadow'
+              ? 'bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-400 focus:ring-emerald-500'
+              : 'border-green-300 shadow'
           }`}
         />
       </div>
 
       <motion.div
-        // 🔑 Quiz Card Styling
         className={`w-full max-w-3xl rounded-2xl shadow-xl p-8 text-center border transition-colors duration-300 ${
-            theme === 'dark'
+          theme === 'dark'
             ? 'bg-gray-800 border-gray-700 shadow-emerald-900/50'
             : 'bg-white border-green-200'
         }`}
@@ -308,7 +337,6 @@ export default function SessionDetailPage() {
                 }}
                 transition={{ duration: 0.5 }}
               />
-              {/* 🔑 Progress Text Color */}
               <span className={`absolute inset-0 flex justify-center items-center text-xs font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-green-800'}`}>
                 {currentQuestion + 1} / {questions.length}
               </span>
@@ -318,53 +346,70 @@ export default function SessionDetailPage() {
               {session.title || "Session sans titre"}
             </h1>
 
-            {current.source && (
+            {current?.source && (
               <p className={`text-sm italic mb-2 transition-colors ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>📌 {current.source}</p>
+            )}
+
+            {/* 🆕 Question Image Support */}
+            {current?.question_image_url && (
+              <div className="mb-6">
+                <img
+                  src={current.question_image_url}
+                  alt="Question"
+                  className="max-h-64 w-full object-contain rounded-xl shadow-lg mx-auto"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+
+            {/* 🆕 Statements Support */}
+            {current?.statements && current.statements.length > 0 && (
+              <div className={`mb-4 p-4 rounded-xl text-left transition-colors ${theme === 'dark' ? 'bg-gray-900 border-gray-700 border' : 'bg-gray-50 border border-gray-200'}`}>
+                <h3 className={`font-semibold mb-2 transition-colors ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>📋 Déclarations :</h3>
+                <ul className={`space-y-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {current.statements.map((statement, index) => (
+                    <li key={index} className="list-disc list-inside">• {statement}</li>
+                  ))}
+                </ul>
+              </div>
             )}
 
             <h2 className={`text-xl font-semibold mb-4 transition-colors ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
               {currentQuestion + 1}. {current.question_text}
             </h2>
 
-            {/* Options with hover + selectable style */}
+            {/* 🆕 Multi-select indicator */}
+            {isMultiSelect && (
+              <p className={`text-sm mb-4 font-medium ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                ✅ Sélection multiple autorisée ({correctAnswers.length} réponses correctes)
+              </p>
+            )}
+
+            {/* Options */}
             <div className="grid grid-cols-1 gap-3">
               {["A", "B", "C", "D", "E"].map((key) => {
                 const val = current.options?.[key];
                 if (!val) return null;
                 const isNotInterested = notInterested[currentQuestion]?.[key];
 
-                const getButtonClass = () => {
-                  if (showResponse) {
-                    if (key === current.correct_answer) return "bg-green-500 text-white";
-                    if (key === selected && key !== current.correct_answer)
-                      return "bg-red-500 text-white";
-                    return theme === 'dark' ? "bg-gray-600 text-gray-200" : "bg-gray-200 text-gray-600";
-                  }
-
-                  if (selected === key)
-                    return theme === 'dark' 
-                        ? "bg-emerald-700 border-2 border-emerald-500 text-gray-50 shadow-md"
-                        : "bg-emerald-200 border-2 border-emerald-400 text-gray-900";
-
-                  return isNotInterested
-                    ? (theme === 'dark' ? "bg-gray-700 text-gray-500 opacity-50" : "bg-gray-100 text-gray-400 opacity-50")
-                    : (theme === 'dark' ? "bg-gray-700 hover:bg-gray-600 text-gray-200" : "bg-green-50 hover:bg-green-100 text-gray-700 transition-colors");
-                };
-
                 return (
                   <motion.div key={key} className="flex items-center gap-2">
                     <motion.button
                       whileTap={{ scale: 0.96 }}
                       disabled={showResponse}
-                      className={`flex-1 py-3 px-5 rounded-xl text-lg font-semibold transition-all duration-300 shadow ${getButtonClass()}`}
+                      className={`flex-1 py-3 px-5 rounded-xl text-lg font-semibold transition-all duration-300 shadow ${getButtonClass(key)}`}
                       onClick={() => handleAnswer(key)}
                     >
+                      <span className={`mr-2 ${selected.includes(key) ? 'text-white' : ''}`}>
+                        {selected.includes(key) ? '✅' : '○'}
+                      </span>
                       {key}. {val}
                     </motion.button>
 
                     <button
                       onClick={() => toggleNotInterested(key)}
-                      // 🔑 'Not Interested' button styling
                       className={`px-3 py-1 rounded-lg text-sm transition-colors ${
                         isNotInterested
                           ? "bg-red-500 text-white"
@@ -378,8 +423,15 @@ export default function SessionDetailPage() {
               })}
             </div>
 
+            {/* Selected count */}
+            {selected.length > 0 && (
+              <p className={`mt-2 text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                Sélectionné: {selected.length} option(s)
+              </p>
+            )}
+
             {/* Show Response Button */}
-            {selected && !showResponse && (
+            {selected.length > 0 && !showResponse && (
               <div className="mt-6">
                 <button
                   onClick={handleShowResponse}
@@ -390,10 +442,8 @@ export default function SessionDetailPage() {
               </div>
             )}
 
-            {/* 🟩 Justification, Notes, Report, Navigation (unchanged) */}
-            {showResponse && selected && (
+            {showResponse && selected.length > 0 && (
               <div className={`mt-6 p-4 rounded-xl border text-left transition-colors ${theme === 'dark' ? 'bg-gray-900 border-emerald-900' : 'bg-green-50 border-green-200'}`}>
-                {/* 🔑 Justification Header */}
                 <h3 className={`font-semibold mb-2 transition-colors ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>📖 Justification :</h3>
                 {current.justification_text ? (
                   <p className={`transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{current.justification_text}</p>
@@ -408,17 +458,16 @@ export default function SessionDetailPage() {
                   />
                 )}
 
-                {/* Notes */}
+                {/* Notes & Report sections remain the same */}
                 <div className="mt-6">
                   <textarea
                     value={noteInput}
                     onChange={(e) => setNoteInput(e.target.value)}
                     placeholder="📝 Écrire une note sur cette question..."
-                    // 🔑 Textarea Styling
                     className={`w-full p-3 rounded-xl border outline-none transition-colors ${
                       theme === 'dark' 
-                      ? 'bg-gray-800 border-gray-600 text-gray-100 placeholder-gray-400'
-                      : 'border-gray-300'
+                        ? 'bg-gray-800 border-gray-600 text-gray-100 placeholder-gray-400'
+                        : 'border-gray-300'
                     }`}
                   />
                   <button
@@ -434,17 +483,15 @@ export default function SessionDetailPage() {
                   )}
                 </div>
 
-                {/* Report */}
                 <div className="mt-6">
                   <textarea
                     value={reportMsg}
                     onChange={(e) => setReportMsg(e.target.value)}
                     placeholder="🚩 Signaler un problème..."
-                    // 🔑 Report Textarea Styling
                     className={`w-full p-3 rounded-xl border transition-colors ${
                       theme === 'dark' 
-                      ? 'bg-gray-800 border-red-700 text-gray-100 placeholder-gray-400'
-                      : 'border-red-300'
+                        ? 'bg-gray-800 border-red-700 text-gray-100 placeholder-gray-400'
+                        : 'border-red-300'
                     }`}
                   />
                   <button
@@ -463,7 +510,6 @@ export default function SessionDetailPage() {
                 whileTap={{ scale: 0.9 }}
                 onClick={handlePrevious}
                 disabled={currentQuestion === 0}
-                // 🔑 Previous Button Styling
                 className={`px-6 py-2 rounded-xl font-semibold shadow transition-colors ${
                   currentQuestion === 0
                     ? (theme === 'dark' ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-gray-300 text-gray-600 cursor-not-allowed')
@@ -481,35 +527,27 @@ export default function SessionDetailPage() {
                 {currentQuestion + 1 < questions.length ? "Suivant ➡" : "Terminer 🎉"}
               </motion.button>
             </div>
-            
-            {/* 🔑 Question Counter Text */}
+
             <p className={`mt-6 transition-colors ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
               Question {currentQuestion + 1} / {questions.length}
             </p>
           </>
         ) : (
-          // ✅ Results Section
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
           >
-            {/* 🔑 Result Title */}
             <h2 className={`text-3xl font-bold mb-4 transition-colors ${theme === 'dark' ? 'text-emerald-400' : 'text-gray-800'}`}>🎉 Session terminée !</h2>
-
-            {/* 🔑 Result Scores */}
             <p className={`text-xl mb-2 transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
               🔹 Tout ou Rien: <span className="font-bold text-green-600 dark:text-green-400">{finalScoreNormal} / 20</span>
             </p>
-
             <p className={`text-xl mb-2 transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
               🔹 Partiel: <span className="font-bold text-blue-600 dark:text-blue-400">{finalScorePartiel} / 20</span>
             </p>
-
             <p className={`text-xl mb-6 transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
               🔹 Partiel Négatif: <span className="font-bold text-red-600 dark:text-red-400">{finalScoreNegative} / 20</span>
             </p>
-
             <motion.button
               whileTap={{ scale: 0.9 }}
               className="bg-green-500 px-6 py-3 rounded-xl text-lg font-semibold text-white shadow hover:bg-green-600"
@@ -519,7 +557,7 @@ export default function SessionDetailPage() {
                 setScoreNormal(0);
                 setScorePartiel(0);
                 setFinished(false);
-                setSelected(null);
+                setSelected([]);
                 setNoteInput(notes[0] || "");
               }}
             >
