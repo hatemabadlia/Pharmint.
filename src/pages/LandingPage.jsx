@@ -152,8 +152,7 @@ const LandingPage = () => {
       <br />
       <br />
       <br />
-
-      <GazaSupportBanner />
+      
       {/* HERO */}
       <section
         id="accueil"

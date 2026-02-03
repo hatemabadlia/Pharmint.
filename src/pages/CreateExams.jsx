@@ -24,11 +24,9 @@ const ErrorMessage = ({ message, onClose, theme }) => (
   </motion.div>
 );
 
-
 export default function CreateExam() {
   // 🔑 Get theme state
   const { theme } = useTheme();
-
   const [modules, setModules] = useState([]);
   const [selectedModule, setSelectedModule] = useState("");
   const [availableCourses, setAvailableCourses] = useState([]);
