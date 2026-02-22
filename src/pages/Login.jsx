@@ -1,15 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase/config";
 import Lottie from "lottie-react";
 import LoginAnimation from "../assets/Login.json"; 
-import { Eye, EyeOff, XCircle } from "lucide-react"; // Import XCircle for error
-import { motion, AnimatePresence } from "framer-motion"; // Import motion for error
-import { useTheme } from "../context/ThemeContext"; // 🔑 Import useTheme
+import { Eye, EyeOff, XCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useTheme } from "../context/ThemeContext";
 import "../style/WaveBackground.css";
-import { v4 as uuidv4 } from "uuid";
 
 // 💡 Custom Error/Message Box Component (replaces alert())
 const ErrorMessage = ({ message, onClose }) => (
@@ -33,27 +32,23 @@ const ErrorMessage = ({ message, onClose }) => (
 
 const Login = () => {
   const navigate = useNavigate();
-  // 🔑 Get theme state
   const { theme } = useTheme(); 
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  
-  // 🔑 State for custom error message
   const [errorMessage, setErrorMessage] = useState(null);
   
   const closeError = () => setErrorMessage(null);
 
-  // 💡 Error handling utility
   const displayError = (message) => {
     setErrorMessage(message);
-    setTimeout(closeError, 5000); // Auto-dismiss after 5 seconds
+    setTimeout(closeError, 5000);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrorMessage(null); // Clear previous errors
+    setErrorMessage(null);
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -63,23 +58,11 @@ const Login = () => {
       const userDoc = await getDoc(userRef);
 
       if (!userDoc.exists()) {
-        displayError("Compte introuvable."); // ❌ Replaced alert()
+        displayError("Compte introuvable.");
         return;
       }
 
       const data = userDoc.data();
-      const storedDeviceId = localStorage.getItem("device_session_id");
-      const newDeviceId = storedDeviceId || uuidv4();
-
-      if (!storedDeviceId) localStorage.setItem("device_session_id", newDeviceId);
-
-      if (data.sessionId && data.sessionId !== newDeviceId) {
-        displayError("⚠️ Votre compte est déjà actif sur un autre appareil !"); // ❌ Replaced alert()
-        await auth.signOut();
-        return;
-      }
-
-      await updateDoc(userRef, { sessionId: newDeviceId });
 
       if (data.approved) {
         navigate("/");
@@ -88,7 +71,6 @@ const Login = () => {
       }
 
     } catch (err) {
-      // ❌ Replaced alert() with a more specific error for common login failures
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
         displayError("Email ou mot de passe incorrect.");
       } else {
@@ -98,12 +80,10 @@ const Login = () => {
   };
 
   return (
-    // 🔑 Conditional background color for the main container
     <div className={`min-h-screen flex items-center justify-center relative transition-colors duration-500 ${
         theme === 'dark' ? 'bg-gray-900' : 'bg-green-50'
     }`}>
       
-      {/* 🔑 Custom Error Message Display */}
       <AnimatePresence>
         {errorMessage && <ErrorMessage message={errorMessage} onClose={closeError} />}
       </AnimatePresence>
@@ -113,13 +93,11 @@ const Login = () => {
           <Lottie animationData={LoginAnimation} loop={true} className="w-72 md:w-96" />
         </div>
 
-        {/* 🔑 Card Background and Shadow */}
         <div className={`backdrop-blur-lg p-8 rounded-2xl shadow-xl w-full md:w-1/2 max-w-md transition-colors duration-300 ${
             theme === 'dark' 
             ? 'bg-gray-800/90 shadow-2xl shadow-emerald-900/50 ring-1 ring-gray-700' 
             : 'bg-white/90'
         }`}>
-          {/* 🔑 Heading Text Color */}
           <h2 className={`text-3xl font-bold mb-6 text-center transition-colors ${
               theme === 'dark' ? 'text-emerald-400' : 'text-green-600'
           }`}>
@@ -131,7 +109,6 @@ const Login = () => {
               placeholder="Email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              // 🔑 Input Styling
               className={`w-full px-4 py-2 border rounded-lg outline-none transition-colors duration-300 ${
                   theme === 'dark'
                   ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400 focus:ring-emerald-500'
@@ -145,7 +122,6 @@ const Login = () => {
                 placeholder="Mot de passe"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                // 🔑 Input Styling
                 className={`w-full px-4 py-2 border rounded-lg outline-none pr-10 transition-colors duration-300 ${
                     theme === 'dark'
                     ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400 focus:ring-emerald-500'
@@ -156,7 +132,6 @@ const Login = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                // 🔑 Icon Color
                 className={`absolute right-3 top-2.5 transition-colors ${
                     theme === 'dark' ? 'text-gray-400 hover:text-emerald-400' : 'text-gray-500 hover:text-green-600'
                 }`}
@@ -172,10 +147,8 @@ const Login = () => {
               Se connecter
             </button>
           </form>
-          {/* 🔑 Supporting Text Color */}
           <p className={`mt-6 text-center transition-colors ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
             Pas encore de compte ?{" "}
-            {/* 🔑 Link Color */}
             <Link to="/signup" className={`hover:underline transition-colors ${theme === 'dark' ? 'text-emerald-400 hover:text-emerald-300' : 'text-green-600'}`}>
               S'inscrire
             </Link>
@@ -183,7 +156,6 @@ const Login = () => {
         </div>
       </div>
 
-      {/* 🔑 Conditional class for wave background styling */}
       <div 
         className={`wave-bg fixed inset-0 z-0 pointer-events-none ${
           theme === 'dark' ? 'dark-waves' : ''
